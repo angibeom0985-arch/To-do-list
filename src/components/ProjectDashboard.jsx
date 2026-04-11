@@ -79,6 +79,7 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
 function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayAssignment }) {
   const [isAdding, setIsAdding] = useState(false);
   const [newChildTitle, setNewChildTitle] = useState('');
+  const [showMemo, setShowMemo] = useState(false);
 
   const handleAddChild = (e) => {
     if (e.key === 'Enter' && newChildTitle.trim()) {
@@ -138,6 +139,14 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
         {/* Depth 1 Specifics */}
         {node.depth === 1 && (
           <div className="tree-depth1-extras">
+            <button 
+              className="expand-btn" 
+              onClick={() => setShowMemo(!showMemo)}
+              title="프로젝트 참고자료 메모"
+              style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}
+            >
+              📝
+            </button>
             <div className="color-picker-mini">
               {Object.keys(COLOR_PALETTE).map(c => (
                 <div 
@@ -196,21 +205,37 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
         </div>
       </div>
 
-      {isAdding && (
-        <div className="tree-add-drawer">
-          <span className="tree-indent-line"></span>
-          <input 
-            autoFocus
-            type="text" 
-            className="tree-add-input" 
-            placeholder={getPlaceholder()}
-            value={newChildTitle}
-            onChange={(e) => setNewChildTitle(e.target.value)}
-            onKeyDown={handleAddChild}
-            onBlur={() => setIsAdding(false)}
-          />
-        </div>
-      )}
+      {/* Actions */}
+      <div className="tree-actions-container">
+        {isAdding && (
+          <div className="tree-add-drawer">
+            <span className="tree-indent-line"></span>
+            <input 
+              autoFocus
+              type="text" 
+              className="tree-add-input" 
+              placeholder={getPlaceholder()}
+              value={newChildTitle}
+              onChange={(e) => setNewChildTitle(e.target.value)}
+              onKeyDown={handleAddChild}
+              onBlur={() => setIsAdding(false)}
+            />
+          </div>
+        )}
+
+        {showMemo && node.depth === 1 && (
+          <div className="tree-add-drawer" style={{ marginBottom: '0.5rem' }}>
+            <span className="tree-indent-line"></span>
+            <textarea 
+              className="memo-textarea tree-add-input" 
+              placeholder="이 프로젝트에 필요한 링크나 참고자료를 자유롭게 적어두세요..."
+              value={node.memo || ''}
+              onChange={(e) => updateNodeFields(node.id, { memo: e.target.value })}
+              style={{ minHeight: '80px', width: '100%', resize: 'vertical' }}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Children */}
       {node.children && node.children.length > 0 && node.isExpanded && (
