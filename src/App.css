@@ -534,3 +534,38 @@
   mask: radial-gradient(transparent 50%, black 50%);
   -webkit-mask: radial-gradient(transparent 50%, black 50%);
 }
+
+/* Memo Pad Styles */
+.memo-pad-container {
+  overflow: hidden;
+  height: 480px; 
+}
+
+.memo-textarea {
+  flex: 1;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 1.5rem;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+}
+
+.memo-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.memo-textarea::-webkit-scrollbar {
+  width: 8px;
+}
+.memo-textarea::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 4px;
+}
+.memo-textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
