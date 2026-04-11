@@ -1142,11 +1142,15 @@
 
 /* Horizontal Connector Lines */
 .mindmap-children-col {
+  --connector-color: #38bdf8;
+  --connector-size: 3px;
+  --parent-gap: 1.5rem;
+  --child-gap: 2rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding-left: 2rem; /* Space between vertical line and child card */
-  margin-left: 1.5rem; /* Space between parent card and vertical line */
+  padding-left: var(--child-gap); /* space from spine to child card */
+  margin-left: var(--parent-gap); /* space from parent card to spine */
   position: relative;
 }
 
@@ -1154,11 +1158,11 @@
 .mindmap-children-col::before {
   content: "";
   position: absolute;
-  left: -2rem;
+  left: 0;
   top: 0;
   bottom: 0;
-  width: 3px;
-  background: #38bdf8;
+  width: var(--connector-size);
+  background: var(--connector-color);
   border-radius: 2px;
 }
 
@@ -1167,10 +1171,10 @@
   content: "";
   position: absolute;
   top: 50%;
-  right: -1.6rem;
-  width: 1.5rem;
-  height: 3px;
-  background: #38bdf8;
+  right: calc(var(--parent-gap) * -1);
+  width: var(--parent-gap);
+  height: var(--connector-size);
+  background: var(--connector-color);
   transform: translateY(-50%);
 }
 
@@ -1179,10 +1183,10 @@
   content: "";
   position: absolute;
   top: 50%;
-  left: -2rem;
-  width: 2rem;
-  height: 3px;
-  background: #38bdf8;
+  left: calc(var(--child-gap) * -1);
+  width: var(--child-gap);
+  height: var(--connector-size);
+  background: var(--connector-color);
   transform: translateY(-50%);
 }
 
