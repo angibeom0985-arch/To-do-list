@@ -1530,15 +1530,16 @@
 
 .vision-node {
   position: absolute;
-  width: 240px;
-  min-height: 110px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--glass-border);
   border-radius: 14px;
-  padding: 0.6rem;
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
   cursor: grab;
   user-select: none;
   z-index: 2;
@@ -1547,6 +1548,14 @@
 .vision-canvas.is-view-mode .vision-node {
   cursor: default;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.vision-node.is-edit {
+  justify-content: flex-start;
+}
+
+.vision-node.is-view {
+  justify-content: center;
 }
 
 .vision-node.dragging {
@@ -1581,9 +1590,11 @@
 
 .vision-node-title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1rem;
   line-height: 1.2;
   color: var(--text-main);
+  width: 100%;
+  text-align: center;
 }
 
 .vision-node-note {
@@ -1593,12 +1604,15 @@
   line-height: 1.35;
   white-space: pre-wrap;
   word-break: break-word;
+  width: 100%;
+  text-align: center;
 }
 
 .vision-node-actions {
   display: flex;
   gap: 0.35rem;
   margin-top: 0.25rem;
+  justify-content: center;
 }
 
 .vision-node-action {

@@ -2,13 +2,45 @@
 
 const CANVAS_WIDTH = 2400;
 const CANVAS_HEIGHT = 1500;
-const NODE_WIDTH = 240;
-const NODE_HEIGHT_TEXT = 110;
-const NODE_HEIGHT_IMAGE = 220;
+const CANVAS_PADDING = 10;
+const NODE_MIN_WIDTH = 150;
+const NODE_EDIT_MIN_WIDTH = 240;
+const NODE_MAX_WIDTH = 460;
+const NODE_MAX_HEIGHT = 360;
+const NODE_TEXT_LINE_HEIGHT = 21;
+const NODE_IMAGE_HEIGHT = 124;
 
-const normalizePoint = (x, y) => {
-  const nx = Math.max(10, Math.min(x, CANVAS_WIDTH - NODE_WIDTH - 10));
-  const ny = Math.max(10, Math.min(y, CANVAS_HEIGHT - NODE_HEIGHT_IMAGE - 10));
+const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
+
+const getTextLines = (value) => {
+  if (!value) return [''];
+  return String(value).split('\n');
+};
+
+const getNodeSize = (node, isEditMode) => {
+  const title = node.title || '제목 없음';
+  const note = node.note || '';
+  const lines = [...getTextLines(title), ...getTextLines(note).filter(Boolean)];
+  const longestLine = lines.reduce((max, line) => Math.max(max, line.length), 0);
+  const visualLineCount = Math.max(1, lines.length);
+
+  const minWidth = isEditMode ? NODE_EDIT_MIN_WIDTH : NODE_MIN_WIDTH;
+  const width = clamp(88 + longestLine * 14, minWidth, NODE_MAX_WIDTH);
+  const textBlockHeight = 28 + visualLineCount * NODE_TEXT_LINE_HEIGHT;
+  const editorExtra = isEditMode ? 44 : 0;
+  const imageExtra = node.imageUrl ? NODE_IMAGE_HEIGHT + 12 : 0;
+  const baseHeight = textBlockHeight + editorExtra + imageExtra;
+  const minHeight = node.imageUrl ? 178 : isEditMode ? 110 : 84;
+
+  return {
+    width,
+    height: clamp(baseHeight, minHeight, NODE_MAX_HEIGHT),
+  };
+};
+
+const normalizePoint = (x, y, size = { width: NODE_MAX_WIDTH, height: NODE_MAX_HEIGHT }) => {
+  const nx = clamp(x, CANVAS_PADDING, CANVAS_WIDTH - size.width - CANVAS_PADDING);
+  const ny = clamp(y, CANVAS_PADDING, CANVAS_HEIGHT - size.height - CANVAS_PADDING);
   return { x: nx, y: ny };
 };
 
@@ -29,18 +61,26 @@ const normalizeNode = (item, index) => {
   };
 };
 
-const getNodeHeight = (node) => (node.imageUrl ? NODE_HEIGHT_IMAGE : NODE_HEIGHT_TEXT);
+const getNodeRect = (node, isEditMode) => {
+  const size = getNodeSize(node, isEditMode);
+  return {
+    x: node.x,
+    y: node.y,
+    width: size.width,
+    height: size.height,
+  };
+};
 
-const getNodeCenter = (node) => ({
-  x: node.x + NODE_WIDTH / 2,
-  y: node.y + getNodeHeight(node) / 2,
+const getNodeCenter = (rect) => ({
+  x: rect.x + rect.width / 2,
+  y: rect.y + rect.height / 2,
 });
 
-const projectToNodeBorder = (from, to, targetNode) => {
-  const cx = targetNode.x + NODE_WIDTH / 2;
-  const cy = targetNode.y + getNodeHeight(targetNode) / 2;
-  const hw = NODE_WIDTH / 2;
-  const hh = getNodeHeight(targetNode) / 2;
+const projectToNodeBorder = (from, to, targetRect) => {
+  const cx = targetRect.x + targetRect.width / 2;
+  const cy = targetRect.y + targetRect.height / 2;
+  const hw = targetRect.width / 2;
+  const hh = targetRect.height / 2;
 
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -77,8 +117,7 @@ export default function VisionBoard({ items, setItems }) {
   const setNodes = (updater) => {
     setItems((prev) => {
       const normalized = (prev || []).map((item, index) => normalizeNode(item, index));
-      const next = updater(normalized);
-      return next;
+      return updater(normalized);
     });
   };
 
@@ -109,17 +148,21 @@ export default function VisionBoard({ items, setItems }) {
     const resolvedImage = imageFileData || imageUrl.trim();
     if (!title.trim() && !note.trim() && !resolvedImage) return;
 
-    const p = normalizePoint(lastPoint.x, lastPoint.y);
     const newNode = {
       id: crypto.randomUUID(),
       title: title.trim(),
       note: note.trim(),
       imageUrl: resolvedImage,
       parentId: null,
-      x: p.x,
-      y: p.y,
+      x: lastPoint.x,
+      y: lastPoint.y,
       createdAt: new Date().toISOString(),
     };
+
+    const size = getNodeSize(newNode, true);
+    const p = normalizePoint(lastPoint.x, lastPoint.y, size);
+    newNode.x = p.x;
+    newNode.y = p.y;
 
     setNodes((prev) => [...prev, newNode]);
     setTitle('');
@@ -133,18 +176,21 @@ export default function VisionBoard({ items, setItems }) {
     if (!parent) return;
 
     const childCount = nodes.filter((n) => n.parentId === parentId).length;
-    const base = normalizePoint(parent.x + 300, parent.y + childCount * 130 - 65);
-
     const newNode = {
       id: crypto.randomUUID(),
       title: '새 노드',
       note: '',
       imageUrl: '',
       parentId,
-      x: base.x,
-      y: base.y,
+      x: parent.x + 300,
+      y: parent.y + childCount * 130 - 65,
       createdAt: new Date().toISOString(),
     };
+
+    const size = getNodeSize(newNode, true);
+    const base = normalizePoint(newNode.x, newNode.y, size);
+    newNode.x = base.x;
+    newNode.y = base.y;
 
     setNodes((prev) => [...prev, newNode]);
   };
@@ -179,6 +225,7 @@ export default function VisionBoard({ items, setItems }) {
       id: node.id,
       offsetX: e.clientX - rect.left - node.x,
       offsetY: e.clientY - rect.top - node.y,
+      size: getNodeSize(node, isEditMode),
     };
     setDraggingId(node.id);
 
@@ -188,6 +235,7 @@ export default function VisionBoard({ items, setItems }) {
       const p = normalizePoint(
         moveEvent.clientX - canvasRect.left - dragRef.current.offsetX,
         moveEvent.clientY - canvasRect.top - dragRef.current.offsetY,
+        dragRef.current.size,
       );
 
       setNodes((prev) => prev.map((item) => (item.id === dragRef.current.id ? { ...item, x: p.x, y: p.y } : item)));
@@ -270,17 +318,22 @@ export default function VisionBoard({ items, setItems }) {
         const pastedImageUrl = typeof reader.result === 'string' ? reader.result : '';
         if (!pastedImageUrl) return;
 
-        const p = normalizePoint(lastPoint.x, lastPoint.y);
         const newNode = {
           id: crypto.randomUUID(),
           title: 'Pasted Image',
           note: '',
           imageUrl: pastedImageUrl,
           parentId: null,
-          x: p.x,
-          y: p.y,
+          x: lastPoint.x,
+          y: lastPoint.y,
           createdAt: new Date().toISOString(),
         };
+
+        const size = getNodeSize(newNode, true);
+        const normalized = normalizePoint(lastPoint.x, lastPoint.y, size);
+        newNode.x = normalized.x;
+        newNode.y = normalized.y;
+
         setNodes((prev) => [...prev, newNode]);
       };
       reader.readAsDataURL(file);
@@ -294,10 +347,12 @@ export default function VisionBoard({ items, setItems }) {
     .filter((child) => child.parentId && nodeMap.has(child.parentId))
     .map((child) => {
       const parent = nodeMap.get(child.parentId);
-      const parentCenter = getNodeCenter(parent);
-      const childCenter = getNodeCenter(child);
-      const start = projectToNodeBorder(parentCenter, childCenter, parent);
-      const end = projectToNodeBorder(childCenter, parentCenter, child);
+      const parentRect = getNodeRect(parent, isEditMode);
+      const childRect = getNodeRect(child, isEditMode);
+      const parentCenter = getNodeCenter(parentRect);
+      const childCenter = getNodeCenter(childRect);
+      const start = projectToNodeBorder(parentCenter, childCenter, parentRect);
+      const end = projectToNodeBorder(childCenter, parentCenter, childRect);
 
       return {
         key: `${parent.id}-${child.id}`,
@@ -312,18 +367,10 @@ export default function VisionBoard({ items, setItems }) {
     <div className="glass-panel vision-board-panel animate-fade-in" style={{ animationDelay: '0.15s' }}>
       <div className="vision-topbar">
         <div className="vision-mode-switch">
-          <button
-            type="button"
-            className={`view-tab ${mode === 'view' ? 'active' : ''}`}
-            onClick={() => switchMode('view')}
-          >
+          <button type="button" className={`view-tab ${mode === 'view' ? 'active' : ''}`} onClick={() => switchMode('view')}>
             보기 모드
           </button>
-          <button
-            type="button"
-            className={`view-tab ${mode === 'edit' ? 'active' : ''}`}
-            onClick={() => switchMode('edit')}
-          >
+          <button type="button" className={`view-tab ${mode === 'edit' ? 'active' : ''}`} onClick={() => switchMode('edit')}>
             편집 모드
           </button>
         </div>
@@ -357,73 +404,75 @@ export default function VisionBoard({ items, setItems }) {
             ))}
           </svg>
 
-          {nodes.map((node) => (
-            <article
-              key={node.id}
-              className={`vision-node ${draggingId === node.id ? 'dragging' : ''} ${!node.imageUrl ? 'text-only' : ''}`}
-              style={{ left: `${node.x}px`, top: `${node.y}px` }}
-              onMouseDown={(e) => startDrag(e, node)}
-            >
-              {node.imageUrl && <img src={node.imageUrl} alt={node.title || 'vision node'} className="vision-node-image" draggable={false} />}
-              <h3 className="vision-node-title">{node.title || '제목 없음'}</h3>
-              {node.note && <p className="vision-node-note">{node.note}</p>}
+          {nodes.map((node) => {
+            const nodeSize = getNodeSize(node, isEditMode);
+            return (
+              <article
+                key={node.id}
+                className={`vision-node ${draggingId === node.id ? 'dragging' : ''} ${!node.imageUrl ? 'text-only' : ''} ${isEditMode ? 'is-edit' : 'is-view'}`}
+                style={{ left: `${node.x}px`, top: `${node.y}px`, width: `${nodeSize.width}px`, minHeight: `${nodeSize.height}px` }}
+                onMouseDown={(e) => startDrag(e, node)}
+              >
+                {node.imageUrl && <img src={node.imageUrl} alt={node.title || 'vision node'} className="vision-node-image" draggable={false} />}
+                <h3 className="vision-node-title">{node.title || '제목 없음'}</h3>
+                {node.note && <p className="vision-node-note">{node.note}</p>}
 
-              {isEditMode && (
-                <div className="vision-node-actions">
-                  <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => addChildNode(node.id)}>
-                    +
-                  </button>
-                  <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => openEditor(node)}>
-                    ✎
-                  </button>
-                  <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => deleteNodeAndDescendants(node.id)}>
-                    -
-                  </button>
-                </div>
-              )}
-
-              {isEditMode && editingId === node.id && (
-                <form
-                  className="vision-node-editor"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    saveEdit();
-                  }}
-                >
-                  <input
-                    type="text"
-                    className="project-input"
-                    placeholder="제목"
-                    value={editDraft.title}
-                    onChange={(e) => setEditDraft((prev) => ({ ...prev, title: e.target.value }))}
-                  />
-                  <input
-                    type="text"
-                    className="project-input"
-                    placeholder="메모"
-                    value={editDraft.note}
-                    onChange={(e) => setEditDraft((prev) => ({ ...prev, note: e.target.value }))}
-                  />
-                  <input
-                    type="url"
-                    className="project-input"
-                    placeholder="이미지 URL"
-                    value={editDraft.imageUrl}
-                    onChange={(e) => setEditDraft((prev) => ({ ...prev, imageUrl: e.target.value }))}
-                  />
-                  <input type="file" accept="image/*" className="project-input" onChange={handleEditFileChange} />
-                  <div className="vision-editor-actions">
-                    <button type="submit" className="save-child-btn">저장</button>
-                    <button type="button" className="save-child-btn" onClick={() => setEditingId(null)}>닫기</button>
+                {isEditMode && (
+                  <div className="vision-node-actions">
+                    <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => addChildNode(node.id)}>
+                      +
+                    </button>
+                    <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => openEditor(node)}>
+                      ✎
+                    </button>
+                    <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => deleteNodeAndDescendants(node.id)}>
+                      -
+                    </button>
                   </div>
-                </form>
-              )}
-            </article>
-          ))}
+                )}
+
+                {isEditMode && editingId === node.id && (
+                  <form
+                    className="vision-node-editor"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      saveEdit();
+                    }}
+                  >
+                    <input
+                      type="text"
+                      className="project-input"
+                      placeholder="제목"
+                      value={editDraft.title}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, title: e.target.value }))}
+                    />
+                    <input
+                      type="text"
+                      className="project-input"
+                      placeholder="메모"
+                      value={editDraft.note}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, note: e.target.value }))}
+                    />
+                    <input
+                      type="url"
+                      className="project-input"
+                      placeholder="이미지 URL"
+                      value={editDraft.imageUrl}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                    />
+                    <input type="file" accept="image/*" className="project-input" onChange={handleEditFileChange} />
+                    <div className="vision-editor-actions">
+                      <button type="submit" className="save-child-btn">저장</button>
+                      <button type="button" className="save-child-btn" onClick={() => setEditingId(null)}>닫기</button>
+                    </div>
+                  </form>
+                )}
+              </article>
+            );
+          })}
         </div>
       </div>
     </div>
   );
 }
-
