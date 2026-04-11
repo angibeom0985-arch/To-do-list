@@ -4,6 +4,7 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import ProjectDashboard from './components/ProjectDashboard';
 import DailyView from './components/DailyView';
 import MemoPad from './components/MemoPad';
+import ManagePage from './components/ManagePage';
 
 const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 const weekOrder = [1, 2, 3, 4, 5, 6, 0];
@@ -13,6 +14,7 @@ function App() {
   const [globalMemos, setGlobalMemos] = useLocalStorage('global-memos-list', []);
   const [activeDay, setActiveDay] = useState(new Date().getDay()); // 0-6, or 'memo'
   const [theme, setTheme] = useLocalStorage('app-theme', 'dark');
+  const [currentView, setCurrentView] = useState('main'); // 'main' | 'manage'
 
   useEffect(() => {
     if (theme === 'light') {
@@ -109,49 +111,74 @@ function App() {
           목표 지향 스케줄러.
         </h1>
         <p>4단계 아웃라이너로 세밀하게 기획하고 요일별로 실천하세요.</p>
-      </header>
-      
-      {/* 1. 기획 영역: 4-Depth Outliner Dashboard */}
-      <ProjectDashboard 
-        treeNodes={treeNodes}
-        addRootProject={addRootProject}
-        addChildNode={addChildNode}
-        deleteNode={deleteNode}
-        updateNodeFields={updateNodeFields}
-        toggleDayAssignment={toggleDayAssignment}
-      />
-
-      {/* 2. 실행 영역: Daily View & Memos */}
-      <div className="execution-section animate-fade-in" style={{ animationDelay: '0.2s', marginTop: '1rem' }}>
-        <div className="day-tabs">
-          {weekOrder.map((dayIndex) => (
-            <button 
-              key={dayIndex}
-              className={`day-tab ${activeDay === dayIndex ? 'active' : ''}`}
-              onClick={() => setActiveDay(dayIndex)}
-            >
-              {dayNames[dayIndex]}
-            </button>
-          ))}
+        
+        <div className="view-selector" style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.5rem' }}>
           <button 
-            className={`day-tab memo-tab ${activeDay === 'memo' ? 'active' : ''}`}
-            onClick={() => setActiveDay('memo')}
+            className={`view-tab ${currentView === 'main' ? 'active' : ''}`}
+            onClick={() => setCurrentView('main')}
           >
-            자유 메모
+            🏠 스케줄러 보드
+          </button>
+          <button 
+            className={`view-tab ${currentView === 'manage' ? 'active' : ''}`}
+            onClick={() => setCurrentView('manage')}
+          >
+            ⚙️ 프로젝트 구성 관리
           </button>
         </div>
-        
-        {activeDay === 'memo' ? (
-          <MemoPad memos={globalMemos} setMemos={setGlobalMemos} />
-        ) : (
-          <DailyView 
-            activeDay={activeDay} 
-            treeNodes={treeNodes} 
+      </header>
+
+      {currentView === 'manage' ? (
+        <ManagePage 
+          treeNodes={treeNodes} 
+          updateNodeFields={updateNodeFields} 
+          deleteNode={deleteNode} 
+        />
+      ) : (
+        <>
+          {/* 1. 기획 영역: 4-Depth Outliner Dashboard */}
+          <ProjectDashboard 
+            treeNodes={treeNodes}
+            addRootProject={addRootProject}
+            addChildNode={addChildNode}
+            deleteNode={deleteNode}
             updateNodeFields={updateNodeFields}
             toggleDayAssignment={toggleDayAssignment}
           />
-        )}
-      </div>
+
+          {/* 2. 실행 영역: Daily View & Memos */}
+          <div className="execution-section animate-fade-in" style={{ animationDelay: '0.2s', marginTop: '1rem' }}>
+            <div className="day-tabs">
+              {weekOrder.map((dayIndex) => (
+                <button 
+                  key={dayIndex}
+                  className={`day-tab ${activeDay === dayIndex ? 'active' : ''}`}
+                  onClick={() => setActiveDay(dayIndex)}
+                >
+                  {dayNames[dayIndex]}
+                </button>
+              ))}
+              <button 
+                className={`day-tab memo-tab ${activeDay === 'memo' ? 'active' : ''}`}
+                onClick={() => setActiveDay('memo')}
+              >
+                자유 메모
+              </button>
+            </div>
+            
+            {activeDay === 'memo' ? (
+              <MemoPad memos={globalMemos} setMemos={setGlobalMemos} />
+            ) : (
+              <DailyView 
+                activeDay={activeDay} 
+                treeNodes={treeNodes} 
+                updateNodeFields={updateNodeFields}
+                toggleDayAssignment={toggleDayAssignment}
+              />
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1227,3 +1227,48 @@
   background: rgba(239, 68, 68, 0.2);
 }
 
+/* App Routing Tabs */
+.view-tab {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  padding: 0.6rem 1.2rem;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: all 0.3s ease;
+}
+
+.view-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.view-tab.active {
+  background: var(--primary-light);
+  color: white;
+  border-color: var(--primary);
+  font-weight: 500;
+}
+
+/* Manage Page Extras */
+.transparent-input {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-main);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s, background 0.2s;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.transparent-input:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.transparent-input:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--primary);
+}
+
