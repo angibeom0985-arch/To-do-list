@@ -296,8 +296,8 @@ export default function VisionBoard({ items, setItems }) {
       const parent = nodeMap.get(child.parentId);
       const parentCenter = getNodeCenter(parent);
       const childCenter = getNodeCenter(child);
-      const start = projectToNodeBorder(childCenter, parentCenter, parent);
-      const end = projectToNodeBorder(parentCenter, childCenter, child);
+      const start = projectToNodeBorder(parentCenter, childCenter, parent);
+      const end = projectToNodeBorder(childCenter, parentCenter, child);
 
       return {
         key: `${parent.id}-${child.id}`,
