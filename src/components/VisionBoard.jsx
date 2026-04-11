@@ -383,7 +383,14 @@ export default function VisionBoard({ items, setItems }) {
               )}
 
               {isEditMode && editingId === node.id && (
-                <div className="vision-node-editor" onMouseDown={(e) => e.stopPropagation()}>
+                <form
+                  className="vision-node-editor"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    saveEdit();
+                  }}
+                >
                   <input
                     type="text"
                     className="project-input"
@@ -407,10 +414,10 @@ export default function VisionBoard({ items, setItems }) {
                   />
                   <input type="file" accept="image/*" className="project-input" onChange={handleEditFileChange} />
                   <div className="vision-editor-actions">
-                    <button type="button" className="save-child-btn" onClick={saveEdit}>저장</button>
+                    <button type="submit" className="save-child-btn">저장</button>
                     <button type="button" className="save-child-btn" onClick={() => setEditingId(null)}>닫기</button>
                   </div>
-                </div>
+                </form>
               )}
             </article>
           ))}
