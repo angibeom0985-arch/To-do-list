@@ -212,7 +212,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
           )}
 
           {/* Expand/Collapse Toggle Button (floating at bottom of card, or right side) */}
-          {hasChildren && (
+          {showDetails && hasChildren && (
             <button 
               className={`mm-expand-btn ${node.isExpanded ? 'expanded' : ''}`}
               onClick={() => updateNodeFields(node.id, { isExpanded: !node.isExpanded })}
