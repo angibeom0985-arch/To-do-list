@@ -1,6 +1,4 @@
-﻿import { useMemo, useRef, useState } from 'react';
-
-import { useEffect } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 
 const CANVAS_WIDTH = 2400;
 const CANVAS_HEIGHT = 1500;
@@ -32,6 +30,31 @@ const normalizeNode = (item, index) => {
 };
 
 const getNodeHeight = (node) => (node.imageUrl ? NODE_HEIGHT_IMAGE : NODE_HEIGHT_TEXT);
+
+const getNodeCenter = (node) => ({
+  x: node.x + NODE_WIDTH / 2,
+  y: node.y + getNodeHeight(node) / 2,
+});
+
+const projectToNodeBorder = (from, to, targetNode) => {
+  const cx = targetNode.x + NODE_WIDTH / 2;
+  const cy = targetNode.y + getNodeHeight(targetNode) / 2;
+  const hw = NODE_WIDTH / 2;
+  const hh = getNodeHeight(targetNode) / 2;
+
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+  const tx = dx !== 0 ? hw / Math.abs(dx) : Infinity;
+  const ty = dy !== 0 ? hh / Math.abs(dy) : Infinity;
+  const t = Math.min(tx, ty);
+
+  return {
+    x: cx + dx * t,
+    y: cy + dy * t,
+  };
+};
 
 export default function VisionBoard({ items, setItems }) {
   const [mode, setMode] = useState('view');
@@ -271,12 +294,17 @@ export default function VisionBoard({ items, setItems }) {
     .filter((child) => child.parentId && nodeMap.has(child.parentId))
     .map((child) => {
       const parent = nodeMap.get(child.parentId);
+      const parentCenter = getNodeCenter(parent);
+      const childCenter = getNodeCenter(child);
+      const start = projectToNodeBorder(childCenter, parentCenter, parent);
+      const end = projectToNodeBorder(parentCenter, childCenter, child);
+
       return {
         key: `${parent.id}-${child.id}`,
-        x1: parent.x + NODE_WIDTH / 2,
-        y1: parent.y + getNodeHeight(parent) / 2,
-        x2: child.x + NODE_WIDTH / 2,
-        y2: child.y + getNodeHeight(child) / 2,
+        x1: start.x,
+        y1: start.y,
+        x2: end.x,
+        y2: end.y,
       };
     });
 
@@ -391,3 +419,4 @@ export default function VisionBoard({ items, setItems }) {
     </div>
   );
 }
+
