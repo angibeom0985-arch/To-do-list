@@ -80,6 +80,7 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
 function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayAssignment }) {
   const [isAdding, setIsAdding] = useState(false);
   const [newChildTitle, setNewChildTitle] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
   const [showMemo, setShowMemo] = useState(false);
 
   const submitAddChild = () => {
@@ -128,7 +129,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
           
           {/* Header Row: Title, Checkbox, Actions */}
           <div className="mm-header">
-            {isTaskNode && (
+            {showDetails && isTaskNode && (
               <label className="task-checkbox-wrapper mini-box leaf-checkbox" style={{ marginRight: '0.4rem' }}>
                 <input type="checkbox" checked={node.completed || false} onChange={() => updateNodeFields(node.id, { completed: !node.completed })} />
                 <span className="task-checkbox-custom mini-box"></span>
@@ -138,13 +139,20 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
             <span className="tree-title">{node.title}</span>
 
             <div className="mm-actions">
+              <button
+                className="add-child-btn detail-toggle-btn"
+                onClick={() => setShowDetails(!showDetails)}
+                title="세부 조정"
+              >
+                {showDetails ? '닫기' : '세부'}
+              </button>
               <button className="add-child-btn" onClick={() => setIsAdding(!isAdding)} title="하위 항목 추가">+</button>
               <button className="delete-node-btn" onClick={() => deleteNode(node.id)} title="삭제">×</button>
             </div>
           </div>
 
           {/* Body: Depth 1 specific UI */}
-          {node.depth === 1 && (
+          {showDetails && node.depth === 1 && (
             <div className="mm-depth1-extras">
               <button className="expand-btn" onClick={() => setShowMemo(!showMemo)} title="메모">📝</button>
               <div className="color-picker-mini">
@@ -163,7 +171,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
           )}
 
           {/* Body: Priority and Day Assignment */}
-          {isTaskNode && (
+          {showDetails && isTaskNode && (
             <div className="mm-assignments">
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
                 {node.priority && node.priority !== 'normal' && (
@@ -216,7 +224,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
 
         {/* Memo Drawer stays under the parent card */}
         <div className="mm-drawer-container">
-          {showMemo && node.depth === 1 && (
+          {showDetails && showMemo && node.depth === 1 && (
             <div className="tree-add-drawer mm-drawer">
               <textarea 
                 className="memo-textarea tree-add-input" 
