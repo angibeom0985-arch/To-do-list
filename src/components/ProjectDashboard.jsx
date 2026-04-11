@@ -100,11 +100,10 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
     if (node.depth === 1) return '세부 프로젝트 추가...';
     if (node.depth === 2) return '계획 추가...';
     if (node.depth === 3) return '세부 계획 추가...';
-    return '';
+    return '하위 항목 추가...';
   };
 
   const isTaskNode = node.depth >= 2;
-  const isLeaf = node.depth >= 4; // To prevent adding children beyond depth 4
   const projectColor = node.color || 'default';
   const customStyles = node.depth === 1 ? {
     '--primary': COLOR_PALETTE[projectColor].main,
@@ -206,9 +205,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
         )}
 
         <div className="tree-actions">
-          {!isLeaf && (
-            <button className="add-child-btn" onClick={() => setIsAdding(!isAdding)}>+</button>
-          )}
+          <button className="add-child-btn" onClick={() => setIsAdding(!isAdding)}>+</button>
           <button className="delete-node-btn" onClick={() => deleteNode(node.id)}>×</button>
         </div>
       </div>
