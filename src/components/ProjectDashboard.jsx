@@ -363,6 +363,17 @@ function TreeItem({
 
           {showDetails && (
             <div style={{ marginTop: '0.5rem' }}>
+              <button
+                className="expand-btn"
+                onClick={() => {
+                  const url = `${window.location.origin}${window.location.pathname}?workflowNode=${node.id}`;
+                  window.open(url, '_blank', 'width=1280,height=860');
+                }}
+                title="워크플로우"
+                style={{ marginRight: '0.45rem' }}
+              >
+                워크플로우
+              </button>
               <button className="expand-btn" onClick={() => setShowMemo(!showMemo)} title="메모">
                 {showMemo ? '메모 닫기' : '메모'}
               </button>

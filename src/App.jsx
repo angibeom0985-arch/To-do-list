@@ -6,6 +6,7 @@ import DailyView from './components/DailyView';
 import MemoPad from './components/MemoPad';
 import ManagePage from './components/ManagePage';
 import VisionBoard from './components/VisionBoard';
+import WorkflowWindow from './components/WorkflowWindow';
 
 const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 const weekOrder = [1, 2, 3, 4, 5, 6, 0];
@@ -17,6 +18,7 @@ function App() {
   const [activeDay, setActiveDay] = useState(new Date().getDay());
   const [theme, setTheme] = useLocalStorage('app-theme', 'dark');
   const [currentView, setCurrentView] = useState('main'); // 'main' | 'vision' | 'manage'
+  const workflowNodeId = new URLSearchParams(window.location.search).get('workflowNode');
 
   useEffect(() => {
     if (theme === 'light') {
@@ -207,6 +209,15 @@ function App() {
       return inserted ? insertedNodes : prev;
     });
   };
+
+  if (workflowNodeId) {
+    const targetNode = findNodeById(treeNodes, workflowNodeId);
+    return (
+      <div className="app-container">
+        <WorkflowWindow targetNode={targetNode} updateNodeFields={updateNodeFields} />
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
