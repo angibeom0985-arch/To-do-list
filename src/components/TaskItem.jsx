@@ -28,6 +28,13 @@ export default function TaskItem({ task, toggleTask, deleteTask, addSubtask, tog
         </label>
         
         <span className="task-content">
+          {task.priority && task.priority !== 'normal' && (
+            <span className={`priority-badge ${task.priority}`}>
+              {task.priority === 'urgent' && '⏰ 급한 일'}
+              {task.priority === 'important' && '💰 중요한 일'}
+              {task.priority === 'both' && '🔥 급하고 중요'}
+            </span>
+          )}
           {task.text}
         </span>
         

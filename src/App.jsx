@@ -15,6 +15,7 @@ function App() {
   const [globalMemo, setGlobalMemo] = useLocalStorage('global-memo', '');
   const [activeDay, setActiveDay] = useState(new Date().getDay()); // 0-6, or 'memo'
   const [inputValue, setInputValue] = useState('');
+  const [inputPriority, setInputPriority] = useState('normal');
 
   const currentTasks = weeklyTasks[activeDay] || [];
 
@@ -26,6 +27,7 @@ function App() {
       id: crypto.randomUUID(),
       text: inputValue.trim(),
       completed: false,
+      priority: inputPriority,
       subtasks: [],
       createdAt: new Date().toISOString()
     };
@@ -36,6 +38,7 @@ function App() {
     }));
     
     setInputValue('');
+    setInputPriority('normal');
   };
 
   const toggleTask = (id) => {
@@ -163,20 +166,28 @@ function App() {
           <ProgressTracker weeklyTasks={weeklyTasks} activeDay={activeDay} />
           
           <div className="glass-panel animate-fade-in" style={{ animationDelay: '0.3s' }}>
-            <form onSubmit={addTask} className="task-form">
-              <input 
-                type="text" 
-                className="task-input" 
-                placeholder="추가할 할 일을 입력하세요..." 
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-              />
-              <button type="submit" className="add-btn" aria-label="할 일 추가">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-              </button>
+            <form onSubmit={addTask} className="task-form-wrapper">
+              <div className="priority-selectors">
+                <button type="button" className={`p-btn normal ${inputPriority === 'normal' ? 'active' : ''}`} onClick={() => setInputPriority('normal')}>일반</button>
+                <button type="button" className={`p-btn urgent ${inputPriority === 'urgent' ? 'active' : ''}`} onClick={() => setInputPriority('urgent')}>⏰ 급한 일</button>
+                <button type="button" className={`p-btn important ${inputPriority === 'important' ? 'active' : ''}`} onClick={() => setInputPriority('important')}>💰 중요한 일</button>
+                <button type="button" className={`p-btn both ${inputPriority === 'both' ? 'active' : ''}`} onClick={() => setInputPriority('both')}>🔥 급하고 중요</button>
+              </div>
+              <div className="task-form">
+                <input 
+                  type="text" 
+                  className="task-input" 
+                  placeholder="추가할 할 일을 입력하세요..." 
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                />
+                <button type="submit" className="add-btn" aria-label="할 일 추가">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
+              </div>
             </form>
             
             <TaskList 
