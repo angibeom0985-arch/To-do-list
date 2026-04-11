@@ -10,6 +10,7 @@ const weekOrder = [1, 2, 3, 4, 5, 6, 0];
 function App() {
   const initialWeeklyTasks = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
   const [weeklyTasks, setWeeklyTasks] = useLocalStorage('weekly-tasks-v2', initialWeeklyTasks);
+  const [projectTitle, setProjectTitle] = useLocalStorage('project-title', '내 큰 프로젝트');
   const [activeDay, setActiveDay] = useState(new Date().getDay());
   const [inputValue, setInputValue] = useState('');
 
@@ -124,8 +125,15 @@ function App() {
   return (
     <div className="app-container">
       <header className="header animate-fade-in">
-        <h1>진행도 추적기.</h1>
-        <p>집중력을 유지하고, 매일매일의 루틴을 완성하세요.</p>
+        <input 
+          className="project-title-input"
+          value={projectTitle}
+          onChange={(e) => setProjectTitle(e.target.value)}
+          placeholder="나의 큰 프로젝트"
+          autoComplete="off"
+          spellCheck="false"
+        />
+        <p>집중력을 유지하고, 세부적인 계획들을 매일 일~토에 입력해서 진행하세요.</p>
       </header>
       
       <div className="day-tabs animate-fade-in" style={{ animationDelay: '0.1s' }}>
