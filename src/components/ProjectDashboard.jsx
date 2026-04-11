@@ -83,7 +83,6 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
   const [showMemo, setShowMemo] = useState(false);
 
   const handleAddChild = (e) => {
-    if (e.type === 'keydown' && e.key !== 'Enter') return;
     e.preventDefault();
     
     if (newChildTitle.trim()) {
@@ -94,6 +93,11 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
     } else {
       setIsAdding(false);
     }
+  };
+
+  const handleCancelAddChild = (e) => {
+    e.preventDefault();
+    setIsAdding(false);
   };
 
   const getPlaceholder = () => {
@@ -241,7 +245,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
             <div className="mindmap-group">
               <div className="mindmap-node-anchor">
                 <div className="mindmap-node-card" style={{ padding: '0.6rem 1rem', minWidth: '200px' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                  <form onSubmit={handleAddChild} style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
                     <input 
                       autoFocus
                       type="text" 
@@ -249,24 +253,24 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
                       placeholder={getPlaceholder()}
                       value={newChildTitle}
                       onChange={(e) => setNewChildTitle(e.target.value)}
-                      onKeyDown={handleAddChild}
                       style={{ flex: 1, padding: '0.4rem', border: 'none', borderBottom: '1px solid var(--primary)', background: 'transparent', color: 'var(--text-main)', outline: 'none' }}
                     />
                     <button 
-                      onMouseDown={(e) => { e.preventDefault(); handleAddChild(e); }} 
+                      type="submit"
                       className="save-child-btn mini-btn"
                       style={{ padding: '0.3rem 0.6rem' }}
                     >
                       ✓
                     </button>
                     <button 
-                      onMouseDown={(e) => { e.preventDefault(); setIsAdding(false); }} 
+                      type="button"
+                      onClick={handleCancelAddChild}
                       className="save-child-btn mini-btn"
                       style={{ padding: '0.3rem 0.6rem', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}
                     >
                       X
                     </button>
-                  </div>
+                  </form>
                 </div>
               </div>
             </div>
