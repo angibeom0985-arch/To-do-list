@@ -1,13 +1,8 @@
-﻿import React, { useState } from 'react';
+﻿import React from 'react';
 
 export default function ManagePage({ treeNodes, addRootProject, addChildNode, updateNodeFields, deleteNode }) {
-  const [newRootTitle, setNewRootTitle] = useState('');
-
-  const handleAddRoot = (e) => {
-    e.preventDefault();
-    if (!newRootTitle.trim()) return;
-    addRootProject(newRootTitle.trim());
-    setNewRootTitle('');
+  const handleAddRoot = () => {
+    addRootProject('새 프로젝트');
   };
 
   return (
@@ -15,20 +10,14 @@ export default function ManagePage({ treeNodes, addRootProject, addChildNode, up
       <div className="manage-header" style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
         <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.4rem' }}>⚙️ 대량 편집 모드</h2>
         <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-          이름 수정뿐 아니라 항목 추가/삭제도 여기서 바로 처리할 수 있습니다.
+          이름 수정과 + / - 버튼으로 항목 추가, 삭제를 바로 처리할 수 있습니다.
         </p>
 
-        <form onSubmit={handleAddRoot} style={{ display: 'flex', gap: '0.5rem', marginTop: '0.8rem' }}>
-          <input
-            type="text"
-            className="project-input"
-            placeholder="상위 프로젝트 추가..."
-            value={newRootTitle}
-            onChange={(e) => setNewRootTitle(e.target.value)}
-            style={{ flex: 1 }}
-          />
-          <button type="submit" className="add-btn mini-btn">추가</button>
-        </form>
+        <div style={{ marginTop: '0.8rem' }}>
+          <button type="button" className="add-btn mini-btn" onClick={handleAddRoot}>
+            + 상위 프로젝트 추가
+          </button>
+        </div>
       </div>
 
       <div className="manage-tree-list">
@@ -53,18 +42,13 @@ export default function ManagePage({ treeNodes, addRootProject, addChildNode, up
 }
 
 function ManageNode({ node, addChildNode, updateNodeFields, deleteNode }) {
-  const [newChildTitle, setNewChildTitle] = useState('');
-
   const getPrefix = () => {
     const depthIcons = ['📁', '📂', '🧩', '📝', '🔹', '🔸', '▫️', '◽'];
     return depthIcons[(Math.max(node.depth, 1) - 1) % depthIcons.length];
   };
 
-  const handleAddChild = (e) => {
-    e.preventDefault();
-    if (!newChildTitle.trim()) return;
-    addChildNode(node.id, node.depth, newChildTitle.trim());
-    setNewChildTitle('');
+  const handleAddChild = () => {
+    addChildNode(node.id, node.depth, '새 항목');
   };
 
   return (
@@ -89,11 +73,7 @@ function ManageNode({ node, addChildNode, updateNodeFields, deleteNode }) {
           }}
         />
 
-        <button
-          onClick={handleAddChild}
-          className="add-child-btn"
-          title="하위 항목 추가"
-        >
+        <button onClick={handleAddChild} className="add-child-btn" title="하위 항목 추가">
           +
         </button>
 
@@ -101,25 +81,11 @@ function ManageNode({ node, addChildNode, updateNodeFields, deleteNode }) {
           onClick={() => deleteNode(node.id)}
           className="delete-btn mini"
           title="삭제"
-          style={{ opacity: 0.6 }}
+          style={{ opacity: 0.75 }}
         >
-          ×
+          -
         </button>
       </div>
-
-      <form onSubmit={handleAddChild} style={{ display: 'flex', gap: '0.4rem', marginLeft: `${(node.depth - 1) * 20 + 44}px`, marginTop: '0.35rem' }}>
-        <input
-          type="text"
-          className="project-input"
-          placeholder="하위 항목 추가..."
-          value={newChildTitle}
-          onChange={(e) => setNewChildTitle(e.target.value)}
-          style={{ flex: 1, fontSize: '0.85rem', padding: '0.35rem 0.55rem' }}
-        />
-        <button type="submit" className="add-btn mini-btn" style={{ padding: '0.35rem 0.6rem', fontSize: '0.9rem' }}>
-          추가
-        </button>
-      </form>
 
       {node.children && node.children.length > 0 && (
         <div style={{ paddingLeft: '0.5rem' }}>
