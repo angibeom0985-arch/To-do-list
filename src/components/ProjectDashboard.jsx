@@ -89,8 +89,8 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
     if (newChildTitle.trim()) {
       addChildNode(node.id, node.depth, newChildTitle.trim());
       setNewChildTitle('');
-      setIsAdding(false);
       updateNodeFields(node.id, { isExpanded: true });
+      // Do not setIsAdding(false) so the user can continuously add multiple children
     } else {
       setIsAdding(false);
     }
@@ -206,26 +206,8 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
           )}
         </div>
 
-        {/* Drawers for New Child / Memo */}
+        {/* Memo Drawer stays under the parent card */}
         <div className="mm-drawer-container">
-          {isAdding && (
-            <div className="tree-add-drawer mm-drawer">
-              <input 
-                autoFocus
-                type="text" 
-                className="tree-add-input" 
-                placeholder={getPlaceholder()}
-                value={newChildTitle}
-                onChange={(e) => setNewChildTitle(e.target.value)}
-                onKeyDown={handleAddChild}
-                onBlur={() => setIsAdding(false)}
-              />
-              <button onMouseDown={(e) => { e.preventDefault(); handleAddChild(e); }} className="save-child-btn">
-                저장
-              </button>
-            </div>
-          )}
-
           {showMemo && node.depth === 1 && (
             <div className="tree-add-drawer mm-drawer">
               <textarea 
@@ -240,10 +222,10 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
         </div>
       </div>
 
-      {/* Children Col */}
-      {hasChildren && node.isExpanded && (
+      {/* Children Col & Add Child Drawer */}
+      {(hasChildren && node.isExpanded) || isAdding ? (
         <div className="mindmap-children-col">
-          {node.children.map(child => (
+          {hasChildren && node.isExpanded && node.children.map(child => (
             <TreeItem 
               key={child.id} 
               node={child} 
@@ -253,8 +235,44 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
               toggleDayAssignment={toggleDayAssignment}
             />
           ))}
+
+          {/* Add Drawer acts as a temporary child node to the right! */}
+          {isAdding && (
+            <div className="mindmap-group">
+              <div className="mindmap-node-anchor">
+                <div className="mindmap-node-card" style={{ padding: '0.6rem 1rem', minWidth: '200px' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                    <input 
+                      autoFocus
+                      type="text" 
+                      className="tree-add-input" 
+                      placeholder={getPlaceholder()}
+                      value={newChildTitle}
+                      onChange={(e) => setNewChildTitle(e.target.value)}
+                      onKeyDown={handleAddChild}
+                      style={{ flex: 1, padding: '0.4rem', border: 'none', borderBottom: '1px solid var(--primary)', background: 'transparent', color: 'var(--text-main)', outline: 'none' }}
+                    />
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); handleAddChild(e); }} 
+                      className="save-child-btn mini-btn"
+                      style={{ padding: '0.3rem 0.6rem' }}
+                    >
+                      ✓
+                    </button>
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); setIsAdding(false); }} 
+                      className="save-child-btn mini-btn"
+                      style={{ padding: '0.3rem 0.6rem', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}
+                    >
+                      X
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
