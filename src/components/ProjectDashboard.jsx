@@ -42,8 +42,8 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
   };
 
   return (
-    <div className="project-dashboard glass-panel">
-      <div className="dashboard-header">
+    <div className="project-dashboard glass-panel" style={{ overflow: 'hidden' }}>
+      <div className="dashboard-header" style={{ marginBottom: '0' }}>
         <h2>📁 프로젝트 아웃라이너</h2>
         <form onSubmit={handleAddRoot} className="project-add-form">
           <input 
@@ -57,9 +57,9 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
         </form>
       </div>
 
-      <div className="tree-container">
+      <div className="mindmap-canvas">
         {treeNodes.length === 0 ? (
-          <p className="empty-projects">기획된 프로젝트가 없습니다. 4단계 아웃라이너로 체계적으로 기획해보세요!</p>
+          <p className="empty-projects" style={{ color: 'var(--text-muted)' }}>기획된 프로젝트가 없습니다. 우측 메뉴로 새 마인드맵을 시작하세요!</p>
         ) : (
           treeNodes.map(node => (
             <TreeItem 
@@ -110,160 +110,149 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
     '--primary-light': COLOR_PALETTE[projectColor].light
   } : {};
 
+  const hasChildren = node.children && node.children.length > 0;
+
   return (
-    <div className={`tree-item depth-${node.depth}`} style={customStyles}>
-      <div className={`tree-item-content ${isTaskNode && node.completed ? 'completed' : ''}`}>
-        
-        {/* Expand / Collapse arrow */}
-        <button 
-          className={`expand-btn ${node.isExpanded ? 'expanded' : ''}`}
-          onClick={() => updateNodeFields(node.id, { isExpanded: !node.isExpanded })}
-          style={{ visibility: node.children && node.children.length > 0 ? 'visible' : 'hidden', width: '20px' }}
-        >
-          ▶
-        </button>
-
-        {/* Checkbox for depth 2+ */}
-        {isTaskNode && (
-          <label className="task-checkbox-wrapper mini-box leaf-checkbox" style={{ marginRight: '0.4rem', marginLeft: '-0.2rem' }}>
-            <input type="checkbox" checked={node.completed || false} onChange={() => updateNodeFields(node.id, { completed: !node.completed })} />
-            <span className="task-checkbox-custom mini-box"></span>
-          </label>
-        )}
-
-        {/* Title */}
-        <span className="tree-title">
-          {node.title}
-          {isTaskNode && node.priority && node.priority !== 'normal' && (
-            <span className={`priority-badge ${node.priority}`} style={{ marginLeft: '0.5rem' }}>
-              {node.priority === 'urgent' && '⏰ 급함'}
-              {node.priority === 'important' && '💰 중요'}
-              {node.priority === 'both' && '🔥 집중'}
-            </span>
-          )}
-        </span>
-
-        {/* Depth 1 Specifics */}
-        {node.depth === 1 && (
-          <div className="tree-depth1-extras">
-            <button 
-              className="expand-btn" 
-              onClick={() => setShowMemo(!showMemo)}
-              title="프로젝트 참고자료 메모"
-              style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}
-            >
-              📝
-            </button>
-            <div className="color-picker-mini">
-              {Object.keys(COLOR_PALETTE).map(c => (
-                <div 
-                  key={c}
-                  onClick={() => updateNodeFields(node.id, { color: c })}
-                  style={{ backgroundColor: COLOR_PALETTE[c].main }}
-                  className={`color-dot ${projectColor === c ? 'active' : ''}`}
-                  title={c}
-                />
-              ))}
-            </div>
-            <div className="mini-ring">
-              <div className="mini-ring-fill" style={{ '--angle': `${calculateProgress(node) * 3.6}deg` }}></div>
-            </div>
-            <span className="project-pct">{calculateProgress(node)}%</span>
-          </div>
-        )}
-
-        {/* Depth 2+ Contexts (Priority & Day Assignment) */}
-        {isTaskNode && (
-          <div className="leaf-assignments">
-            <select 
-              value={node.priority || 'normal'} 
-              onChange={(e) => updateNodeFields(node.id, { priority: e.target.value })}
-              className="mini-select"
-            >
-              <option value="normal">우선순위</option>
-              <option value="urgent">⏰ 급함</option>
-              <option value="important">💰 중요</option>
-              <option value="both">🔥 집중</option>
-            </select>
+    <div className={`mindmap-group depth-${node.depth} ${hasChildren && node.isExpanded ? 'has-children' : ''}`} style={customStyles}>
+      
+      <div className="mindmap-node-anchor">
+        <div className={`mindmap-node-card ${isTaskNode && node.completed ? 'completed' : ''}`}>
+          
+          {/* Header Row: Title, Checkbox, Actions */}
+          <div className="mm-header">
+            {isTaskNode && (
+              <label className="task-checkbox-wrapper mini-box leaf-checkbox" style={{ marginRight: '0.4rem' }}>
+                <input type="checkbox" checked={node.completed || false} onChange={() => updateNodeFields(node.id, { completed: !node.completed })} />
+                <span className="task-checkbox-custom mini-box"></span>
+              </label>
+            )}
             
-            <div className="day-toggles">
-              {[1, 2, 3, 4, 5, 6, 0].map(d => {
-                const isActive = (node.assignedDays || []).includes(d);
-                return (
-                  <button 
-                    key={d}
-                    className={`day-pill ${isActive ? 'active' : ''}`}
-                    onClick={() => toggleDayAssignment(node.id, d)}
-                    title={`${DAY_LETTERS[d]}요일에 복사 배정`}
-                  >
-                    {DAY_LETTERS[d]}
-                  </button>
-                );
-              })}
+            <span className="tree-title">{node.title}</span>
+
+            <div className="mm-actions">
+              <button className="add-child-btn" onClick={() => setIsAdding(!isAdding)} title="하위 항목 추가">+</button>
+              <button className="delete-node-btn" onClick={() => deleteNode(node.id)} title="삭제">×</button>
             </div>
           </div>
-        )}
 
-        <div className="tree-actions">
-          <button className="add-child-btn" onClick={() => setIsAdding(!isAdding)}>+</button>
-          <button className="delete-node-btn" onClick={() => deleteNode(node.id)}>×</button>
+          {/* Body: Depth 1 specific UI */}
+          {node.depth === 1 && (
+            <div className="mm-depth1-extras">
+              <button className="expand-btn" onClick={() => setShowMemo(!showMemo)} title="메모">📝</button>
+              <div className="color-picker-mini">
+                {Object.keys(COLOR_PALETTE).map(c => (
+                  <div 
+                    key={c}
+                    onClick={() => updateNodeFields(node.id, { color: c })}
+                    style={{ backgroundColor: COLOR_PALETTE[c].main }}
+                    className={`color-dot ${projectColor === c ? 'active' : ''}`}
+                    title={c}
+                  />
+                ))}
+              </div>
+              <span className="project-pct">{calculateProgress(node)}%</span>
+            </div>
+          )}
+
+          {/* Body: Priority and Day Assignment */}
+          {isTaskNode && (
+            <div className="mm-assignments">
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                {node.priority && node.priority !== 'normal' && (
+                  <span className={`priority-badge ${node.priority}`}>
+                    {node.priority === 'urgent' && '⏰ 급함'}
+                    {node.priority === 'important' && '💰 중요'}
+                    {node.priority === 'both' && '🔥 집중'}
+                  </span>
+                )}
+                <select 
+                  value={node.priority || 'normal'} 
+                  onChange={(e) => updateNodeFields(node.id, { priority: e.target.value })}
+                  className="mini-select"
+                >
+                  <option value="normal">우선순위</option>
+                  <option value="urgent">⏰ 급함</option>
+                  <option value="important">💰 중요</option>
+                  <option value="both">🔥 집중</option>
+                </select>
+              </div>
+              
+              <div className="day-toggles">
+                {[1, 2, 3, 4, 5, 6, 0].map(d => {
+                  const isActive = (node.assignedDays || []).includes(d);
+                  return (
+                    <button 
+                      key={d}
+                      className={`day-pill ${isActive ? 'active' : ''}`}
+                      onClick={() => toggleDayAssignment(node.id, d)}
+                      title={`${DAY_LETTERS[d]}요일에 복사 배정`}
+                    >
+                      {DAY_LETTERS[d]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Expand/Collapse Toggle Button (floating at bottom of card, or right side) */}
+          {hasChildren && (
+            <button 
+              className={`mm-expand-btn ${node.isExpanded ? 'expanded' : ''}`}
+              onClick={() => updateNodeFields(node.id, { isExpanded: !node.isExpanded })}
+            >
+              {node.isExpanded ? '➖ 접기' : `➕ 펴기 (${node.children.length})`}
+            </button>
+          )}
+        </div>
+
+        {/* Drawers for New Child / Memo */}
+        <div className="mm-drawer-container">
+          {isAdding && (
+            <div className="tree-add-drawer mm-drawer">
+              <input 
+                autoFocus
+                type="text" 
+                className="tree-add-input" 
+                placeholder={getPlaceholder()}
+                value={newChildTitle}
+                onChange={(e) => setNewChildTitle(e.target.value)}
+                onKeyDown={handleAddChild}
+                onBlur={() => setIsAdding(false)}
+              />
+              <button onMouseDown={(e) => { e.preventDefault(); handleAddChild(e); }} className="save-child-btn">
+                저장
+              </button>
+            </div>
+          )}
+
+          {showMemo && node.depth === 1 && (
+            <div className="tree-add-drawer mm-drawer">
+              <textarea 
+                className="memo-textarea tree-add-input" 
+                placeholder="이 프로젝트에 필요한 링크나 참고자료를 자유롭게 적어두세요..."
+                value={node.memo || ''}
+                onChange={(e) => updateNodeFields(node.id, { memo: e.target.value })}
+                style={{ minHeight: '80px', width: '100%', resize: 'vertical', marginTop: '0.5rem' }}
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="tree-actions-container">
-        {isAdding && (
-          <div className="tree-add-drawer" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <span className="tree-indent-line"></span>
-            <input 
-              autoFocus
-              type="text" 
-              className="tree-add-input" 
-              placeholder={getPlaceholder()}
-              value={newChildTitle}
-              onChange={(e) => setNewChildTitle(e.target.value)}
-              onKeyDown={handleAddChild}
-              onBlur={() => setIsAdding(false)}
+      {/* Children Col */}
+      {hasChildren && node.isExpanded && (
+        <div className="mindmap-children-col">
+          {node.children.map(child => (
+            <TreeItem 
+              key={child.id} 
+              node={child} 
+              addChildNode={addChildNode}
+              deleteNode={deleteNode}
+              updateNodeFields={updateNodeFields}
+              toggleDayAssignment={toggleDayAssignment}
             />
-            <button 
-              onMouseDown={(e) => { e.preventDefault(); handleAddChild(e); }} 
-              className="save-child-btn"
-            >
-              저장
-            </button>
-          </div>
-        )}
-
-        {showMemo && node.depth === 1 && (
-          <div className="tree-add-drawer" style={{ marginBottom: '0.5rem' }}>
-            <span className="tree-indent-line"></span>
-            <textarea 
-              className="memo-textarea tree-add-input" 
-              placeholder="이 프로젝트에 필요한 링크나 참고자료를 자유롭게 적어두세요..."
-              value={node.memo || ''}
-              onChange={(e) => updateNodeFields(node.id, { memo: e.target.value })}
-              style={{ minHeight: '80px', width: '100%', resize: 'vertical' }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Children */}
-      {node.children && node.children.length > 0 && node.isExpanded && (
-        <div className="tree-children">
-          <div className="tree-indent-line"></div>
-          <div className="tree-children-list">
-            {node.children.map(child => (
-              <TreeItem 
-                key={child.id} 
-                node={child} 
-                addChildNode={addChildNode}
-                deleteNode={deleteNode}
-                updateNodeFields={updateNodeFields}
-                toggleDayAssignment={toggleDayAssignment}
-              />
-            ))}
-          </div>
+          ))}
         </div>
       )}
     </div>
