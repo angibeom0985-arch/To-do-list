@@ -1143,7 +1143,7 @@
 /* Horizontal Connector Lines */
 .mindmap-children-col {
   --connector-color: #38bdf8;
-  --connector-size: 3px;
+  --connector-size: 2px;
   --parent-gap: 1.5rem;
   --child-gap: 2rem;
   display: flex;
@@ -1154,16 +1154,33 @@
   position: relative;
 }
 
-/* Continuous vertical spine to avoid broken connectors */
-.mindmap-children-col::before {
+/* Vertical segments per child row:
+   keeps connectors continuous while preventing top/bottom protrusion */
+.mindmap-children-col > .mindmap-group > .mindmap-node-anchor {
+  position: relative;
+}
+
+.mindmap-children-col > .mindmap-group > .mindmap-node-anchor::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: calc(var(--child-gap) * -1);
+  top: -0.75rem;
+  bottom: -0.75rem;
   width: var(--connector-size);
   background: var(--connector-color);
   border-radius: 2px;
+}
+
+.mindmap-children-col > .mindmap-group:first-child > .mindmap-node-anchor::before {
+  top: 50%;
+}
+
+.mindmap-children-col > .mindmap-group:last-child > .mindmap-node-anchor::before {
+  bottom: 50%;
+}
+
+.mindmap-children-col > .mindmap-group:only-child > .mindmap-node-anchor::before {
+  display: none;
 }
 
 /* Horizontal line OUT of the parent */
