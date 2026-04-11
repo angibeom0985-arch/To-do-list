@@ -6,7 +6,7 @@ export default function DailyView({ activeDay, projects, toggleTask, assignTaskD
   projects.forEach(project => {
     project.tasks.forEach(task => {
       if (task.assignedDay === activeDay) {
-        dailyTasks.push({ ...task, projectName: project.title, projectId: project.id });
+        dailyTasks.push({ ...task, projectName: project.title, projectId: project.id, projectColor: project.color || 'default' });
       }
     });
   });
@@ -47,7 +47,28 @@ export default function DailyView({ activeDay, projects, toggleTask, assignTaskD
               </label>
 
               <div className="daily-task-content">
-                <span className="daily-project-badge">{task.projectName}</span>
+                {(() => {
+                  const COLOR_PALETTE = {
+                    default: { main: '#8b5cf6', light: 'rgba(139, 92, 246, 0.2)' },
+                    blue: { main: '#3b82f6', light: 'rgba(59, 130, 246, 0.2)' },
+                    green: { main: '#10b981', light: 'rgba(16, 185, 129, 0.2)' },
+                    amber: { main: '#f59e0b', light: 'rgba(245, 158, 11, 0.2)' },
+                    rose: { main: '#f43f5e', light: 'rgba(244, 63, 94, 0.2)' }
+                  };
+                  const colorConfig = COLOR_PALETTE[task.projectColor] || COLOR_PALETTE.default;
+                  return (
+                    <span 
+                      className="daily-project-badge" 
+                      style={{ 
+                        background: colorConfig.light, 
+                        color: colorConfig.main, 
+                        borderColor: colorConfig.light 
+                      }}
+                    >
+                      {task.projectName}
+                    </span>
+                  );
+                })()}
                 {task.priority && task.priority !== 'normal' && (
                   <span className={`priority-badge ${task.priority}`}>
                     {task.priority === 'urgent' && '⏰ 급한 일'}

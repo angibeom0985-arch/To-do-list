@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import ProjectDashboard from './components/ProjectDashboard';
@@ -12,6 +12,15 @@ function App() {
   const [projects, setProjects] = useLocalStorage('projects-v1', []);
   const [globalMemos, setGlobalMemos] = useLocalStorage('global-memos-list', []);
   const [activeDay, setActiveDay] = useState(new Date().getDay()); // 0-6, or 'memo'
+  const [theme, setTheme] = useLocalStorage('app-theme', 'dark');
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light-mode');
+    } else {
+      document.body.classList.remove('light-mode');
+    }
+  }, [theme]);
 
   // Project Actions
   const addProject = (title) => {
@@ -97,9 +106,20 @@ function App() {
     }));
   };
 
+  const updateProjectColor = (projectId, colorCode) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, color: colorCode } : p));
+  };
+
   return (
     <div className="app-container">
-      <header className="header animate-fade-in" style={{ marginBottom: '0.5rem' }}>
+      <header className="header animate-fade-in" style={{ marginBottom: '0.5rem', position: 'relative' }}>
+        <button 
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="theme-toggle"
+          title="테마 변경"
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
         <h1 style={{ fontSize: '2.5rem', background: '-webkit-linear-gradient(45deg, var(--primary), #d8b4fe)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0 }}>
           목표 지향 스케줄러.
         </h1>
@@ -116,6 +136,7 @@ function App() {
         deleteTask={deleteTask}
         assignTaskDay={assignTaskDay}
         reorderProjectTasks={reorderProjectTasks}
+        updateProjectColor={updateProjectColor}
       />
 
       {/* 2. 실행 영역: Daily View & Memos */}

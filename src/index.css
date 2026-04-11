@@ -20,6 +20,25 @@
   --font-family: 'Outfit', sans-serif;
 }
 
+body.light-mode {
+  --bg-color: #f1f5f9;
+  --bg-gradient: linear-gradient(135deg, #e2e8f0 0%, #f8fafc 100%);
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(0, 0, 0, 0.08); /* slightly dark border for light mode */
+  --glass-shadow: rgba(0, 0, 0, 0.05) 0 8px 32px 0;
+  
+  --primary: #8b5cf6;
+  --primary-hover: #7c3aed;
+  --primary-light: rgba(139, 92, 246, 0.15);
+  
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+}
+
+body {
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -36,6 +55,7 @@ body {
   justify-content: center;
   align-items: flex-start;
   padding: 2rem 1rem;
+  transition: background 0.4s ease, color 0.4s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {

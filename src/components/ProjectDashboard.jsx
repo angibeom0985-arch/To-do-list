@@ -16,7 +16,7 @@ function ProjectProgress({ tasks }) {
   );
 }
 
-export default function ProjectDashboard({ projects, addProject, deleteProject, addTaskToProject, toggleTask, deleteTask, assignTaskDay, reorderProjectTasks }) {
+  export default function ProjectDashboard({ projects, addProject, deleteProject, addTaskToProject, toggleTask, deleteTask, assignTaskDay, reorderProjectTasks, updateProjectColor }) {
   const [newProjectTitle, setNewProjectTitle] = useState('');
 
   const handleAddProject = (e) => {
@@ -57,6 +57,7 @@ export default function ProjectDashboard({ projects, addProject, deleteProject, 
               deleteTask={deleteTask}
               assignTaskDay={assignTaskDay}
               reorderProjectTasks={reorderProjectTasks}
+              updateProjectColor={updateProjectColor}
             />
           ))
         )}
@@ -65,7 +66,15 @@ export default function ProjectDashboard({ projects, addProject, deleteProject, 
   );
 }
 
-function ProjectCard({ project, deleteProject, addTaskToProject, toggleTask, deleteTask, assignTaskDay, reorderProjectTasks }) {
+const COLOR_PALETTE = {
+  default: { main: '#8b5cf6', light: 'rgba(139, 92, 246, 0.2)' },
+  blue: { main: '#3b82f6', light: 'rgba(59, 130, 246, 0.2)' },
+  green: { main: '#10b981', light: 'rgba(16, 185, 129, 0.2)' },
+  amber: { main: '#f59e0b', light: 'rgba(245, 158, 11, 0.2)' },
+  rose: { main: '#f43f5e', light: 'rgba(244, 63, 94, 0.2)' }
+};
+
+function ProjectCard({ project, deleteProject, addTaskToProject, toggleTask, deleteTask, assignTaskDay, reorderProjectTasks, updateProjectColor }) {
   const [taskText, setTaskText] = useState('');
   const [taskPriority, setTaskPriority] = useState('normal');
 
@@ -78,14 +87,37 @@ function ProjectCard({ project, deleteProject, addTaskToProject, toggleTask, del
     }
   };
 
+  const projectColor = project.color || 'default';
+  const customStyles = {
+    '--primary': COLOR_PALETTE[projectColor].main,
+    '--primary-light': COLOR_PALETTE[projectColor].light
+  };
+
   return (
-    <div className="project-card">
+    <div className="project-card" style={customStyles}>
       <div className="project-card-header">
         <div className="project-title-area">
           <h3 className="project-card-title">{project.title}</h3>
           <ProjectProgress tasks={project.tasks} />
         </div>
-        <button onClick={() => deleteProject(project.id)} className="delete-btn">×</button>
+        
+        <div style={{ display: 'flex', gap: '0.4rem', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <button onClick={() => deleteProject(project.id)} className="delete-btn">×</button>
+          <div className="color-picker" style={{ display: 'flex', gap: '0.3rem', marginTop: '0.5rem' }}>
+            {Object.keys(COLOR_PALETTE).map(c => (
+              <div 
+                key={c}
+                onClick={() => updateProjectColor(project.id, c)}
+                style={{ 
+                  width: '14px', height: '14px', borderRadius: '50%', cursor: 'pointer', 
+                  backgroundColor: COLOR_PALETTE[c].main,
+                  border: projectColor === c ? '2px solid white' : '2px solid transparent'
+                }}
+                title={`${c} 색상으로 변경`}
+              />
+            ))}
+          </div>
+        </div>
       </div>
       
       <form onSubmit={handleAddTask} className="project-task-form">
