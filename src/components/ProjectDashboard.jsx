@@ -34,6 +34,7 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [draggedNodeId, setDraggedNodeId] = useState(null);
   const [dragOverNodeId, setDragOverNodeId] = useState(null);
+  const [dragOverPosition, setDragOverPosition] = useState('after');
 
   const handleAddRoot = (e) => {
     e.preventDefault();
@@ -47,23 +48,35 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
     setDraggedNodeId(nodeId);
   };
 
-  const handleNodeDragEnter = (nodeId) => {
+  const handleNodeDragOver = (nodeId, position) => {
     if (draggedNodeId && draggedNodeId !== nodeId) {
       setDragOverNodeId(nodeId);
+      setDragOverPosition(position);
     }
   };
 
-  const handleNodeDrop = (targetId) => {
+  const handleNodeDrop = (targetId, position) => {
     if (draggedNodeId && draggedNodeId !== targetId) {
-      moveNode(draggedNodeId, targetId);
+      moveNode(draggedNodeId, targetId, position);
     }
     setDraggedNodeId(null);
     setDragOverNodeId(null);
+    setDragOverPosition('after');
   };
 
   const handleNodeDragEnd = () => {
     setDraggedNodeId(null);
     setDragOverNodeId(null);
+    setDragOverPosition('after');
+  };
+
+  const handleRootDrop = () => {
+    if (draggedNodeId) {
+      moveNode(draggedNodeId, null, 'root');
+    }
+    setDraggedNodeId(null);
+    setDragOverNodeId(null);
+    setDragOverPosition('after');
   };
 
   return (
@@ -96,12 +109,25 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
               toggleDayAssignment={toggleDayAssignment}
               draggedNodeId={draggedNodeId}
               dragOverNodeId={dragOverNodeId}
+              dragOverPosition={dragOverPosition}
               onNodeDragStart={handleNodeDragStart}
-              onNodeDragEnter={handleNodeDragEnter}
+              onNodeDragOver={handleNodeDragOver}
               onNodeDrop={handleNodeDrop}
               onNodeDragEnd={handleNodeDragEnd}
             />
           ))
+        )}
+        {draggedNodeId && (
+          <div
+            className="root-drop-zone"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleRootDrop();
+            }}
+          >
+            여기에 놓으면 루트 맨 아래로 이동
+          </div>
         )}
       </div>
     </div>
@@ -116,8 +142,9 @@ function TreeItem({
   toggleDayAssignment,
   draggedNodeId,
   dragOverNodeId,
+  dragOverPosition,
   onNodeDragStart,
-  onNodeDragEnter,
+  onNodeDragOver,
   onNodeDrop,
   onNodeDragEnd,
 }) {
@@ -194,23 +221,33 @@ function TreeItem({
   } : {};
 
   const hasChildren = node.children && node.children.length > 0;
+  const getDropPosition = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const y = event.clientY - rect.top;
+    const ratio = y / rect.height;
+    if (ratio < 0.28) return 'before';
+    if (ratio > 0.72) return 'after';
+    return 'inside';
+  };
 
   return (
     <div className={`mindmap-group depth-${node.depth} ${hasChildren && node.isExpanded ? 'has-children' : ''}`} style={customStyles}>
 
       <div className="mindmap-node-anchor">
         <div
-          className={`mindmap-node-card ${isTaskNode && node.completed ? 'completed' : ''} ${draggedNodeId === node.id ? 'dragging' : ''} ${dragOverNodeId === node.id ? 'drag-over' : ''}`}
+          className={`mindmap-node-card ${isTaskNode && node.completed ? 'completed' : ''} ${draggedNodeId === node.id ? 'dragging' : ''} ${dragOverNodeId === node.id ? `drag-over drop-${dragOverPosition}` : ''}`}
           draggable
-          onDragStart={() => onNodeDragStart(node.id)}
-          onDragEnter={(e) => {
-            e.preventDefault();
-            onNodeDragEnter(node.id);
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            onNodeDragStart(node.id);
           }}
-          onDragOver={(e) => e.preventDefault()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            onNodeDragOver(node.id, getDropPosition(e));
+          }}
           onDrop={(e) => {
             e.preventDefault();
-            onNodeDrop(node.id);
+            onNodeDrop(node.id, getDropPosition(e));
           }}
           onDragEnd={onNodeDragEnd}
         >
@@ -406,8 +443,9 @@ function TreeItem({
               toggleDayAssignment={toggleDayAssignment}
               draggedNodeId={draggedNodeId}
               dragOverNodeId={dragOverNodeId}
+              dragOverPosition={dragOverPosition}
               onNodeDragStart={onNodeDragStart}
-              onNodeDragEnter={onNodeDragEnter}
+              onNodeDragOver={onNodeDragOver}
               onNodeDrop={onNodeDrop}
               onNodeDragEnd={onNodeDragEnd}
             />

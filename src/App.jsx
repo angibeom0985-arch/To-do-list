@@ -97,7 +97,7 @@ function App() {
     };
   };
 
-  const insertAfterTarget = (nodes, targetId, insertNode) => {
+  const insertRelativeToTarget = (nodes, targetId, insertNode, position) => {
     let inserted = false;
 
     const walk = (arr) => {
@@ -105,8 +105,25 @@ function App() {
       for (const item of arr) {
         const nextChildren = item.children?.length ? walk(item.children) : item.children || [];
         const nextItem = { ...item, children: nextChildren };
+
+        if (item.id === targetId && position === 'before') {
+          next.push(insertNode);
+          inserted = true;
+        }
+
+        if (item.id === targetId && position === 'inside') {
+          next.push({
+            ...nextItem,
+            isExpanded: true,
+            children: [...(nextItem.children || []), insertNode],
+          });
+          inserted = true;
+          continue;
+        }
+
         next.push(nextItem);
-        if (item.id === targetId) {
+
+        if (item.id === targetId && position === 'after') {
           next.push(insertNode);
           inserted = true;
         }
@@ -115,7 +132,7 @@ function App() {
     };
 
     const nextNodes = walk(nodes);
-    return inserted ? nextNodes : nodes;
+    return { nextNodes, inserted };
   };
 
   // Node Actions
@@ -166,21 +183,29 @@ function App() {
     }));
   };
 
-  const moveNode = (draggedId, targetId) => {
-    if (!draggedId || !targetId || draggedId === targetId) return;
+  const moveNode = (draggedId, targetId, position = 'after') => {
+    if (!draggedId || draggedId === targetId) return;
 
     setTreeNodes(prev => {
       const draggedNode = findNodeById(prev, draggedId);
-      const targetNode = findNodeById(prev, targetId);
+      const targetNode = targetId ? findNodeById(prev, targetId) : null;
 
-      if (!draggedNode || !targetNode) return prev;
-      if (containsNodeId(draggedNode, targetId)) return prev;
+      if (!draggedNode) return prev;
+      if (targetId && !targetNode) return prev;
+      if (targetId && containsNodeId(draggedNode, targetId)) return prev;
 
       const { nextNodes, removedNode } = removeNodeById(prev, draggedId);
       if (!removedNode) return prev;
 
-      const movedNode = rebalanceDepth(removedNode, targetNode.depth);
-      return insertAfterTarget(nextNodes, targetId, movedNode);
+      if (position === 'root') {
+        const movedNode = rebalanceDepth(removedNode, 1);
+        return [...nextNodes, movedNode];
+      }
+
+      const movedDepth = position === 'inside' ? targetNode.depth + 1 : targetNode.depth;
+      const movedNode = rebalanceDepth(removedNode, movedDepth);
+      const { nextNodes: insertedNodes, inserted } = insertRelativeToTarget(nextNodes, targetId, movedNode, position);
+      return inserted ? insertedNodes : prev;
     });
   };
 
