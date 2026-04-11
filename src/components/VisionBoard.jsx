@@ -32,6 +32,7 @@ const normalizeNode = (item, index) => {
 const getNodeHeight = (node) => (node.imageUrl ? NODE_HEIGHT_IMAGE : NODE_HEIGHT_TEXT);
 
 export default function VisionBoard({ items, setItems }) {
+  const [mode, setMode] = useState('view');
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -56,7 +57,10 @@ export default function VisionBoard({ items, setItems }) {
     });
   };
 
+  const isEditMode = mode === 'edit';
+
   const handleCanvasMouseDown = (e) => {
+    if (!isEditMode) return;
     if (e.target !== e.currentTarget) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const p = normalizePoint(e.clientX - rect.left, e.clientY - rect.top);
@@ -141,6 +145,7 @@ export default function VisionBoard({ items, setItems }) {
   };
 
   const startDrag = (e, node) => {
+    if (!isEditMode) return;
     if (e.button !== 0 || !canvasRef.current) return;
     e.preventDefault();
 
@@ -206,6 +211,15 @@ export default function VisionBoard({ items, setItems }) {
     setEditingId(null);
   };
 
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
+    if (nextMode !== 'edit') {
+      setEditingId(null);
+      setDraggingId(null);
+      dragRef.current = null;
+    }
+  };
+
   const connectionLines = nodes
     .filter((child) => child.parentId && nodeMap.has(child.parentId))
     .map((child) => {
@@ -222,18 +236,46 @@ export default function VisionBoard({ items, setItems }) {
   return (
     <div className="glass-panel vision-board-panel animate-fade-in" style={{ animationDelay: '0.15s' }}>
       <div className="vision-topbar">
-        <form onSubmit={addRootNode} className="vision-form">
-          <input type="text" className="project-input" placeholder="노드 제목" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <input type="text" className="project-input" placeholder="텍스트 메모" value={note} onChange={(e) => setNote(e.target.value)} />
-          <input type="url" className="project-input" placeholder="이미지 URL (선택)" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
-          <input type="file" accept="image/*" className="project-input" onChange={handleNewFileChange} />
-          <button type="submit" className="add-btn mini-btn">노드 추가</button>
-        </form>
-        <p className="vision-help">캔버스를 클릭한 위치에 노드가 생성됩니다. 각 노드의 + 버튼으로 하위 노드를 여러 개 연결할 수 있습니다.</p>
+        <div className="vision-mode-switch">
+          <button
+            type="button"
+            className={`view-tab ${mode === 'view' ? 'active' : ''}`}
+            onClick={() => switchMode('view')}
+          >
+            보기 모드
+          </button>
+          <button
+            type="button"
+            className={`view-tab ${mode === 'edit' ? 'active' : ''}`}
+            onClick={() => switchMode('edit')}
+          >
+            편집 모드
+          </button>
+        </div>
+
+        {isEditMode ? (
+          <>
+            <form onSubmit={addRootNode} className="vision-form">
+              <input type="text" className="project-input" placeholder="노드 제목" value={title} onChange={(e) => setTitle(e.target.value)} />
+              <input type="text" className="project-input" placeholder="텍스트 메모" value={note} onChange={(e) => setNote(e.target.value)} />
+              <input type="url" className="project-input" placeholder="이미지 URL (선택)" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+              <input type="file" accept="image/*" className="project-input" onChange={handleNewFileChange} />
+              <button type="submit" className="add-btn mini-btn">노드 추가</button>
+            </form>
+            <p className="vision-help">캔버스를 클릭한 위치에 노드가 생성됩니다. 각 노드의 + 버튼으로 하위 노드를 여러 개 연결할 수 있습니다.</p>
+          </>
+        ) : (
+          <p className="vision-help">보기 모드에서는 설정한 텍스트와 이미지만 표시됩니다.</p>
+        )}
       </div>
 
       <div className="vision-canvas-wrap">
-        <div ref={canvasRef} className="vision-canvas" onMouseDown={handleCanvasMouseDown} style={{ width: `${CANVAS_WIDTH}px`, height: `${CANVAS_HEIGHT}px` }}>
+        <div
+          ref={canvasRef}
+          className={`vision-canvas ${isEditMode ? 'is-edit-mode' : 'is-view-mode'}`}
+          onMouseDown={handleCanvasMouseDown}
+          style={{ width: `${CANVAS_WIDTH}px`, height: `${CANVAS_HEIGHT}px` }}
+        >
           <svg className="vision-links" width={CANVAS_WIDTH} height={CANVAS_HEIGHT}>
             {connectionLines.map((line) => (
               <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} />
@@ -251,19 +293,21 @@ export default function VisionBoard({ items, setItems }) {
               <h3 className="vision-node-title">{node.title || '제목 없음'}</h3>
               {node.note && <p className="vision-node-note">{node.note}</p>}
 
-              <div className="vision-node-actions">
-                <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => addChildNode(node.id)}>
-                  +
-                </button>
-                <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => openEditor(node)}>
-                  ✎
-                </button>
-                <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => deleteNodeAndDescendants(node.id)}>
-                  -
-                </button>
-              </div>
+              {isEditMode && (
+                <div className="vision-node-actions">
+                  <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => addChildNode(node.id)}>
+                    +
+                  </button>
+                  <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => openEditor(node)}>
+                    ✎
+                  </button>
+                  <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => deleteNodeAndDescendants(node.id)}>
+                    -
+                  </button>
+                </div>
+              )}
 
-              {editingId === node.id && (
+              {isEditMode && editingId === node.id && (
                 <div className="vision-node-editor" onMouseDown={(e) => e.stopPropagation()}>
                   <input
                     type="text"
