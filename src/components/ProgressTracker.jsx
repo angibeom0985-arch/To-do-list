@@ -3,32 +3,45 @@ import { useMemo } from 'react';
 const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function ProgressTracker({ weeklyTasks, activeDay }) {
-  // Calculate stats for the currently selected day
-  const activeStats = useMemo(() => {
-    const tasks = weeklyTasks[activeDay] || [];
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.completed).length;
+  // Helper function to calculate total and completed items for a list of tasks
+  const getProgressStats = (tasks) => {
+    let total = 0;
+    let completed = 0;
+
+    tasks.forEach(task => {
+      const subtasks = task.subtasks || [];
+      if (subtasks.length === 0) {
+        // 단일 할 일
+        total += 1;
+        if (task.completed) completed += 1;
+      } else {
+        // 세부 과정이 있는 할 일
+        total += subtasks.length;
+        completed += subtasks.filter(st => st.completed).length;
+      }
+    });
+
     const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
     return { total, completed, percentage };
+  };
+
+  const activeStats = useMemo(() => {
+    const tasks = weeklyTasks[activeDay] || [];
+    return getProgressStats(tasks);
   }, [weeklyTasks, activeDay]);
 
-  // Generate stats for all 7 days for the chart
   const weeklyStats = useMemo(() => {
     const days = [];
-    // Start from Monday (1) to Sunday (0) to feel like a standard week, or Sunday(0) to Saturday(6)
-    // Let's do Mon-Sun order: 1, 2, 3, 4, 5, 6, 0
     const weekOrder = [1, 2, 3, 4, 5, 6, 0];
     
     for (const dayIndex of weekOrder) {
       const tasks = weeklyTasks[dayIndex] || [];
-      const total = tasks.length;
-      const completed = tasks.filter(t => t.completed).length;
-      const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+      const stats = getProgressStats(tasks);
       
       days.push({
         dayIndex,
         label: dayNames[dayIndex],
-        percentage,
+        percentage: stats.percentage,
         isActive: dayIndex === activeDay
       });
     }
@@ -50,7 +63,7 @@ export default function ProgressTracker({ weeklyTasks, activeDay }) {
           />
         </div>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-          {activeStats.total}개의 할 일 중 {activeStats.completed}개 완료됨
+          총 {activeStats.total}개의 과정 중 {activeStats.completed}개 완료됨
         </p>
       </div>
 

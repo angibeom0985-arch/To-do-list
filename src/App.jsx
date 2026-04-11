@@ -5,16 +5,14 @@ import TaskList from './components/TaskList';
 import ProgressTracker from './components/ProgressTracker';
 
 const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-// We'll display tabs in Monday -> Sunday order
 const weekOrder = [1, 2, 3, 4, 5, 6, 0];
 
 function App() {
   const initialWeeklyTasks = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
-  const [weeklyTasks, setWeeklyTasks] = useLocalStorage('weekly-tasks', initialWeeklyTasks);
-  const [activeDay, setActiveDay] = useState(new Date().getDay()); // Default to today
+  const [weeklyTasks, setWeeklyTasks] = useLocalStorage('weekly-tasks-v2', initialWeeklyTasks);
+  const [activeDay, setActiveDay] = useState(new Date().getDay());
   const [inputValue, setInputValue] = useState('');
 
-  // The active tasks for the currently selected day
   const currentTasks = weeklyTasks[activeDay] || [];
 
   const addTask = (e) => {
@@ -25,6 +23,7 @@ function App() {
       id: crypto.randomUUID(),
       text: inputValue.trim(),
       completed: false,
+      subtasks: [],
       createdAt: new Date().toISOString()
     };
     
@@ -41,9 +40,17 @@ function App() {
       const dayTasks = prev[activeDay] || [];
       return {
         ...prev,
-        [activeDay]: dayTasks.map(task => 
-          task.id === id ? { ...task, completed: !task.completed } : task
-        )
+        [activeDay]: dayTasks.map(task => {
+          if (task.id === id) {
+            const isCompleted = !task.completed;
+            return { 
+              ...task, 
+              completed: isCompleted,
+              subtasks: task.subtasks ? task.subtasks.map(st => ({...st, completed: isCompleted})) : []
+            };
+          }
+          return task;
+        })
       };
     });
   };
@@ -54,6 +61,62 @@ function App() {
       return {
         ...prev,
         [activeDay]: dayTasks.filter(task => task.id !== id)
+      };
+    });
+  };
+
+  const addSubtask = (taskId, text) => {
+    setWeeklyTasks(prev => {
+      const dayTasks = prev[activeDay] || [];
+      return {
+        ...prev,
+        [activeDay]: dayTasks.map(task => 
+          task.id === taskId ? {
+            ...task,
+            subtasks: [...(task.subtasks || []), { id: crypto.randomUUID(), text, completed: false }]
+          } : task
+        )
+      };
+    });
+  };
+
+  const toggleSubtask = (taskId, subtaskId) => {
+    setWeeklyTasks(prev => {
+      const dayTasks = prev[activeDay] || [];
+      return {
+        ...prev,
+        [activeDay]: dayTasks.map(task => {
+          if (task.id === taskId) {
+            const updatedSubtasks = (task.subtasks || []).map(st => 
+              st.id === subtaskId ? { ...st, completed: !st.completed } : st
+            );
+            // If all subtasks completed, main task might be considered completed (optional UI sync)
+            const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(st => st.completed);
+            
+            return {
+              ...task,
+              subtasks: updatedSubtasks,
+              completed: allCompleted
+            };
+          }
+          return task;
+        })
+      };
+    });
+  };
+
+  const deleteSubtask = (taskId, subtaskId) => {
+    setWeeklyTasks(prev => {
+      const dayTasks = prev[activeDay] || [];
+      return {
+        ...prev,
+        [activeDay]: dayTasks.map(task => {
+          if (task.id === taskId) {
+            const remaining = (task.subtasks || []).filter(st => st.id !== subtaskId);
+            return { ...task, subtasks: remaining };
+          }
+          return task;
+        })
       };
     });
   };
@@ -99,7 +162,10 @@ function App() {
         <TaskList 
           tasks={currentTasks} 
           toggleTask={toggleTask} 
-          deleteTask={deleteTask} 
+          deleteTask={deleteTask}
+          addSubtask={addSubtask}
+          toggleSubtask={toggleSubtask}
+          deleteSubtask={deleteSubtask}
         />
       </div>
     </div>
