@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 
 const COLOR_PALETTE = {
   default: { main: '#8b5cf6', light: 'rgba(139, 92, 246, 0.2)' },
@@ -8,7 +8,7 @@ const COLOR_PALETTE = {
   rose: { main: '#f43f5e', light: 'rgba(244, 63, 94, 0.2)' }
 };
 
-const DAY_LETTERS = ['일', '월', '화', '수', '목', '금', '토'];
+const DAY_LETTERS = ['월', '화', '수', '목', '금', '토', '일'];
 
 // Recursively calculates completion based on depth >= 2
 const calculateProgress = (node) => {
@@ -44,11 +44,11 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
   return (
     <div className="project-dashboard glass-panel" style={{ overflow: 'hidden' }}>
       <div className="dashboard-header" style={{ marginBottom: '0' }}>
-        <h2>📁 프로젝트 아웃라이너</h2>
+        <h2>📁 프로젝트</h2>
         <form onSubmit={handleAddRoot} className="project-add-form">
-          <input 
-            type="text" 
-            placeholder="상위 프로젝트 생성..." 
+          <input
+            type="text"
+            placeholder="상위 프로젝트 생성..."
             value={newProjectTitle}
             onChange={(e) => setNewProjectTitle(e.target.value)}
             className="project-input"
@@ -62,9 +62,9 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
           <p className="empty-projects" style={{ color: 'var(--text-muted)' }}>기획된 프로젝트가 없습니다. 우측 메뉴로 새 마인드맵을 시작하세요!</p>
         ) : (
           treeNodes.map(node => (
-            <TreeItem 
-              key={node.id} 
-              node={node} 
+            <TreeItem
+              key={node.id}
+              node={node}
               addChildNode={addChildNode}
               deleteNode={deleteNode}
               updateNodeFields={updateNodeFields}
@@ -106,10 +106,10 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
   };
 
   const getPlaceholder = () => {
-    if (node.depth === 1) return '세부 프로젝트 추가...';
-    if (node.depth === 2) return '계획 추가...';
-    if (node.depth === 3) return '세부 계획 추가...';
-    return '하위 항목 추가...';
+    if (node.depth === 1) return '세부 추가...';
+    if (node.depth === 2) return '세부 추가...';
+    if (node.depth === 3) return '세부 추가...';
+    return '세부 추가...';
   };
 
   const isTaskNode = node.depth >= 2;
@@ -123,10 +123,10 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
 
   return (
     <div className={`mindmap-group depth-${node.depth} ${hasChildren && node.isExpanded ? 'has-children' : ''}`} style={customStyles}>
-      
+
       <div className="mindmap-node-anchor">
         <div className={`mindmap-node-card ${isTaskNode && node.completed ? 'completed' : ''}`}>
-          
+
           {/* Header Row: Title, Checkbox, Actions */}
           <div className="mm-header">
             {showDetails && isTaskNode && (
@@ -135,10 +135,10 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
                 <span className="task-checkbox-custom mini-box"></span>
               </label>
             )}
-            
+
             <span className="tree-title">
               {node.title}
-              {node.depth === 1 && ` (${calculateProgress(node)}%)`}
+              {` (${calculateProgress(node)}%)`}
             </span>
 
             <div className="mm-actions">
@@ -154,12 +154,16 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
             </div>
           </div>
 
+          {node.memo?.trim() && (
+            <p className="node-memo-preview">{node.memo}</p>
+          )}
+
           {/* Body: Depth 1 specific UI */}
           {showDetails && node.depth === 1 && (
             <div className="mm-depth1-extras">
               <div className="color-picker-mini">
                 {Object.keys(COLOR_PALETTE).map(c => (
-                  <div 
+                  <div
                     key={c}
                     onClick={() => updateNodeFields(node.id, { color: c })}
                     style={{ backgroundColor: COLOR_PALETTE[c].main }}
@@ -182,8 +186,8 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
                     {node.priority === 'both' && '🔥 집중'}
                   </span>
                 )}
-                <select 
-                  value={node.priority || 'normal'} 
+                <select
+                  value={node.priority || 'normal'}
                   onChange={(e) => updateNodeFields(node.id, { priority: e.target.value })}
                   className="mini-select"
                 >
@@ -193,12 +197,12 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
                   <option value="both">🔥 집중</option>
                 </select>
               </div>
-              
+
               <div className="day-toggles">
                 {[1, 2, 3, 4, 5, 6, 0].map(d => {
                   const isActive = (node.assignedDays || []).includes(d);
                   return (
-                    <button 
+                    <button
                       key={d}
                       className={`day-pill ${isActive ? 'active' : ''}`}
                       onClick={() => toggleDayAssignment(node.id, d)}
@@ -222,7 +226,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
 
           {/* Expand/Collapse Toggle Button (floating at bottom of card, or right side) */}
           {showDetails && hasChildren && (
-            <button 
+            <button
               className={`mm-expand-btn ${node.isExpanded ? 'expanded' : ''}`}
               onClick={() => updateNodeFields(node.id, { isExpanded: !node.isExpanded })}
             >
@@ -235,8 +239,8 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
         <div className="mm-drawer-container">
           {showDetails && showMemo && (
             <div className="tree-add-drawer mm-drawer">
-              <textarea 
-                className="memo-textarea tree-add-input" 
+              <textarea
+                className="memo-textarea tree-add-input"
                 placeholder="이 노드에 필요한 메모나 참고자료를 자유롭게 적어두세요..."
                 value={node.memo || ''}
                 onChange={(e) => updateNodeFields(node.id, { memo: e.target.value })}
@@ -251,9 +255,9 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
       {(hasChildren && node.isExpanded) || isAdding ? (
         <div className="mindmap-children-col">
           {hasChildren && node.isExpanded && node.children.map(child => (
-            <TreeItem 
-              key={child.id} 
-              node={child} 
+            <TreeItem
+              key={child.id}
+              node={child}
               addChildNode={addChildNode}
               deleteNode={deleteNode}
               updateNodeFields={updateNodeFields}
@@ -267,17 +271,17 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
               <div className="mindmap-node-anchor">
                 <div className="mindmap-node-card" style={{ padding: '0.6rem 1rem', minWidth: '200px' }}>
                   <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-                    <input 
+                    <input
                       autoFocus
-                      type="text" 
-                      className="tree-add-input" 
+                      type="text"
+                      className="tree-add-input"
                       placeholder={getPlaceholder()}
                       value={newChildTitle}
                       onChange={(e) => setNewChildTitle(e.target.value)}
                       onKeyDown={handleAddChildKeyDown}
                       style={{ flex: 1, padding: '0.4rem', border: 'none', borderBottom: '1px solid var(--primary)', background: 'transparent', color: 'var(--text-main)', outline: 'none' }}
                     />
-                    <button 
+                    <button
                       type="button"
                       onClick={submitAddChild}
                       className="save-child-btn mini-btn"
@@ -285,7 +289,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
                     >
                       ✓
                     </button>
-                    <button 
+                    <button
                       type="button"
                       onClick={handleCancelAddChild}
                       className="save-child-btn mini-btn"
@@ -303,3 +307,5 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
     </div>
   );
 }
+
+
