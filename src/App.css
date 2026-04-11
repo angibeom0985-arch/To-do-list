@@ -1164,19 +1164,19 @@
   content: "";
   position: absolute;
   left: calc(var(--child-gap) * -1);
-  top: -0.75rem;
-  bottom: -0.75rem;
+  top: -1px;
+  bottom: -1px;
   width: var(--connector-size);
   background: var(--connector-color);
-  border-radius: 2px;
+  border-radius: 0;
 }
 
 .mindmap-children-col > .mindmap-group:first-child > .mindmap-node-anchor::before {
-  top: 50%;
+  top: calc(50% - 1px);
 }
 
 .mindmap-children-col > .mindmap-group:last-child > .mindmap-node-anchor::before {
-  bottom: 50%;
+  bottom: calc(50% - 1px);
 }
 
 .mindmap-children-col > .mindmap-group:only-child > .mindmap-node-anchor::before {
@@ -1187,24 +1187,24 @@
 .mindmap-group.has-children > .mindmap-node-anchor > .mindmap-node-card::after {
   content: "";
   position: absolute;
-  top: 50%;
-  right: calc(var(--parent-gap) * -1);
-  width: var(--parent-gap);
+  top: calc(50% - (var(--connector-size) / 2));
+  right: calc((var(--parent-gap) * -1) - 1px);
+  width: calc(var(--parent-gap) + 1px);
   height: var(--connector-size);
   background: var(--connector-color);
-  transform: translateY(-50%);
+  border-radius: 0;
 }
 
 /* Horizontal line INTO the child */
 .mindmap-children-col > .mindmap-group > .mindmap-node-anchor > .mindmap-node-card::before {
   content: "";
   position: absolute;
-  top: 50%;
-  left: calc(var(--child-gap) * -1);
-  width: var(--child-gap);
+  top: calc(50% - (var(--connector-size) / 2));
+  left: calc((var(--child-gap) * -1) - 1px);
+  width: calc(var(--child-gap) + 1px);
   height: var(--connector-size);
   background: var(--connector-color);
-  transform: translateY(-50%);
+  border-radius: 0;
 }
 
 /* Add input */
