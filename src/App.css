@@ -854,7 +854,7 @@
 .project-input {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--glass-border);
-  color: white;
+  color: var(--text-main);
   padding: 0.5rem 1rem;
   border-radius: 8px;
   outline: none;
@@ -1202,6 +1202,11 @@
   border: 1px solid rgba(245, 158, 11, 0.4);
 }
 
+.light-mode .priority-badge.urgent { color: #ef4444; border-color: rgba(239, 68, 68, 0.5); }
+.light-mode .priority-badge.important { color: #d97706; border-color: rgba(245, 158, 11, 0.5); }
+.light-mode .priority-badge.both { color: #ea580c; border-color: rgba(245, 158, 11, 0.6); }
+.light-mode .daily-project-badge { color: var(--primary-hover); border-color: rgba(139, 92, 246, 0.4); }
+
 .task-text {
   font-size: 1.05rem;
   color: var(--text-main);
@@ -1221,6 +1226,11 @@
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.light-mode .unassign-btn {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .unassign-btn:hover {
@@ -1249,6 +1259,10 @@
   color: white;
   border-color: var(--primary);
   font-weight: 500;
+}
+
+.light-mode .view-tab.active {
+  color: var(--primary-hover);
 }
 
 /* Manage Page Extras */
