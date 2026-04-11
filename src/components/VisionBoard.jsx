@@ -1,5 +1,7 @@
 ﻿import { useMemo, useRef, useState } from 'react';
 
+import { useEffect } from 'react';
+
 const CANVAS_WIDTH = 2400;
 const CANVAS_HEIGHT = 1500;
 const NODE_WIDTH = 240;
@@ -220,6 +222,51 @@ export default function VisionBoard({ items, setItems }) {
     }
   };
 
+  useEffect(() => {
+    if (!isEditMode) return undefined;
+
+    const onPaste = (event) => {
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tagName = target.tagName.toLowerCase();
+        if (tagName === 'input' || tagName === 'textarea' || target.isContentEditable) return;
+      }
+
+      const clipboardItems = event.clipboardData?.items;
+      if (!clipboardItems || clipboardItems.length === 0) return;
+
+      const imageItem = Array.from(clipboardItems).find((item) => item.type.startsWith('image/'));
+      if (!imageItem) return;
+
+      const file = imageItem.getAsFile();
+      if (!file) return;
+
+      event.preventDefault();
+      const reader = new FileReader();
+      reader.onload = () => {
+        const pastedImageUrl = typeof reader.result === 'string' ? reader.result : '';
+        if (!pastedImageUrl) return;
+
+        const p = normalizePoint(lastPoint.x, lastPoint.y);
+        const newNode = {
+          id: crypto.randomUUID(),
+          title: 'Pasted Image',
+          note: '',
+          imageUrl: pastedImageUrl,
+          parentId: null,
+          x: p.x,
+          y: p.y,
+          createdAt: new Date().toISOString(),
+        };
+        setNodes((prev) => [...prev, newNode]);
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [isEditMode, lastPoint.x, lastPoint.y]);
+
   const connectionLines = nodes
     .filter((child) => child.parentId && nodeMap.has(child.parentId))
     .map((child) => {
@@ -262,7 +309,7 @@ export default function VisionBoard({ items, setItems }) {
               <input type="file" accept="image/*" className="project-input" onChange={handleNewFileChange} />
               <button type="submit" className="add-btn mini-btn">노드 추가</button>
             </form>
-            <p className="vision-help">캔버스를 클릭한 위치에 노드가 생성됩니다. 각 노드의 + 버튼으로 하위 노드를 여러 개 연결할 수 있습니다.</p>
+            <p className="vision-help">캔버스를 클릭한 위치에 노드가 생성됩니다. 각 노드의 + 버튼으로 하위 노드를 여러 개 연결할 수 있고, Ctrl+V로 클립보드 이미지도 바로 추가됩니다.</p>
           </>
         ) : (
           <p className="vision-help">보기 모드에서는 설정한 텍스트와 이미지만 표시됩니다.</p>
