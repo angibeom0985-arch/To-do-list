@@ -12,7 +12,7 @@ function App() {
   const initialWeeklyTasks = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
   const [weeklyTasks, setWeeklyTasks] = useLocalStorage('weekly-tasks-v2', initialWeeklyTasks);
   const [projectTitle, setProjectTitle] = useLocalStorage('project-title', '내 큰 프로젝트');
-  const [globalMemo, setGlobalMemo] = useLocalStorage('global-memo', '');
+  const [globalMemos, setGlobalMemos] = useLocalStorage('global-memos-list', []);
   const [activeDay, setActiveDay] = useState(new Date().getDay()); // 0-6, or 'memo'
   const [inputValue, setInputValue] = useState('');
   const [inputPriority, setInputPriority] = useState('normal');
@@ -160,7 +160,7 @@ function App() {
       </div>
       
       {activeDay === 'memo' ? (
-        <MemoPad memo={globalMemo} setMemo={setGlobalMemo} />
+        <MemoPad memos={globalMemos} setMemos={setGlobalMemos} />
       ) : (
         <>
           <ProgressTracker weeklyTasks={weeklyTasks} activeDay={activeDay} />
