@@ -1179,6 +1179,29 @@
   white-space: nowrap;
 }
 
+.priority-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 8px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.priority-badge.urgent {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.priority-badge.important {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.priority-badge.both {
+  background: linear-gradient(45deg, rgba(239,68,68,0.2), rgba(245,158,11,0.2));
+  color: #fff;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
 .task-text {
   font-size: 1.05rem;
   color: var(--text-main);

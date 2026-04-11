@@ -124,7 +124,16 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
         )}
 
         {/* Title */}
-        <span className="tree-title">{node.title}</span>
+        <span className="tree-title">
+          {node.title}
+          {isLeaf && node.priority && node.priority !== 'normal' && (
+            <span className={`priority-badge ${node.priority}`} style={{ marginLeft: '0.5rem' }}>
+              {node.priority === 'urgent' && '⏰ 급함'}
+              {node.priority === 'important' && '💰 중요'}
+              {node.priority === 'both' && '🔥 집중'}
+            </span>
+          )}
+        </span>
 
         {/* Depth 1 Specifics */}
         {node.depth === 1 && (
