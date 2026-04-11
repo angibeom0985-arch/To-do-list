@@ -52,7 +52,7 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
             onChange={(e) => setNewProjectTitle(e.target.value)}
             className="project-input"
           />
-          <button type="submit" className="add-btn mini-btn">+</button>
+          <button type="submit" className="add-btn mini-btn">저장</button>
         </form>
       </div>
 
@@ -82,19 +82,23 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
   const [showMemo, setShowMemo] = useState(false);
 
   const handleAddChild = (e) => {
-    if (e.key === 'Enter' && newChildTitle.trim()) {
-      e.preventDefault();
+    if (e.type === 'keydown' && e.key !== 'Enter') return;
+    e.preventDefault();
+    
+    if (newChildTitle.trim()) {
       addChildNode(node.id, node.depth, newChildTitle.trim());
       setNewChildTitle('');
       setIsAdding(false);
       updateNodeFields(node.id, { isExpanded: true });
+    } else {
+      setIsAdding(false);
     }
   };
 
   const getPlaceholder = () => {
-    if (node.depth === 1) return '세부 프로젝트 추가... (Enter)';
-    if (node.depth === 2) return '계획 추가... (Enter)';
-    if (node.depth === 3) return '세부 계획 추가... (Enter)';
+    if (node.depth === 1) return '세부 프로젝트 추가...';
+    if (node.depth === 2) return '계획 추가...';
+    if (node.depth === 3) return '세부 계획 추가...';
     return '';
   };
 
@@ -208,7 +212,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
       {/* Actions */}
       <div className="tree-actions-container">
         {isAdding && (
-          <div className="tree-add-drawer">
+          <div className="tree-add-drawer" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <span className="tree-indent-line"></span>
             <input 
               autoFocus
@@ -220,6 +224,12 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
               onKeyDown={handleAddChild}
               onBlur={() => setIsAdding(false)}
             />
+            <button 
+              onMouseDown={(e) => { e.preventDefault(); handleAddChild(e); }} 
+              className="save-child-btn"
+            >
+              저장
+            </button>
           </div>
         )}
 
