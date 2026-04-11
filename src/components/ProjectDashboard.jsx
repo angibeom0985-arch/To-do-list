@@ -152,7 +152,6 @@ function TreeItem({
   const [newChildTitle, setNewChildTitle] = useState('');
   const [showDetails, setShowDetails] = useState(false);
   const [showMemo, setShowMemo] = useState(false);
-  const [newLink, setNewLink] = useState('');
 
   const submitAddChild = () => {
     if (newChildTitle.trim()) {
@@ -176,34 +175,49 @@ function TreeItem({
     setIsAdding(false);
   };
 
-  const normalizeUrl = (value) => {
-    const trimmed = value.trim();
-    if (!trimmed) return '';
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return `https://${trimmed}`;
+  const getNodeMemos = () => {
+    if (Array.isArray(node.memos)) return node.memos;
+    if (node.memo?.trim()) return [node.memo];
+    return [];
   };
 
-  const addMemoLink = () => {
-    const normalized = normalizeUrl(newLink);
-    if (!normalized) return;
+  const updateMemos = (memos) => {
+    updateNodeFields(node.id, { memos, memo: '' });
+  };
 
-    try {
-      const validUrl = new URL(normalized).toString();
-      const prevLinks = Array.isArray(node.links) ? node.links : [];
-      if (prevLinks.includes(validUrl)) {
-        setNewLink('');
-        return;
+  const addMemoItem = () => {
+    updateMemos([...getNodeMemos(), '']);
+  };
+
+  const updateMemoItem = (index, value) => {
+    const next = [...getNodeMemos()];
+    next[index] = value;
+    updateMemos(next);
+  };
+
+  const removeMemoItem = (index) => {
+    updateMemos(getNodeMemos().filter((_, i) => i !== index));
+  };
+
+  const renderLinkedText = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return String(text).split(urlRegex).map((part, idx) => {
+      if (/^https?:\/\/[^\s]+$/i.test(part)) {
+        return (
+          <a
+            key={`memo-link-${idx}`}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            draggable={false}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
       }
-      updateNodeFields(node.id, { links: [...prevLinks, validUrl] });
-      setNewLink('');
-    } catch {
-      // ignore invalid urls
-    }
-  };
-
-  const removeMemoLink = (link) => {
-    const prevLinks = Array.isArray(node.links) ? node.links : [];
-    updateNodeFields(node.id, { links: prevLinks.filter(item => item !== link) });
+      return <React.Fragment key={`memo-text-${idx}`}>{part}</React.Fragment>;
+    });
   };
 
   const getPlaceholder = () => {
@@ -279,24 +293,12 @@ function TreeItem({
             </div>
           </div>
 
-          {node.memo?.trim() && (
-            <p className="node-memo-preview">{node.memo}</p>
-          )}
-
-          {Array.isArray(node.links) && node.links.length > 0 && (
-            <div className="node-link-preview-list">
-              {node.links.map((link) => (
-                <a
-                  key={link}
-                  href={link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="node-link-preview"
-                  title={link}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {link}
-                </a>
+          {getNodeMemos().length > 0 && (
+            <div className="node-memo-list-preview">
+              {getNodeMemos().map((memoText, index) => (
+                <p key={`${node.id}-memo-preview-${index}`} className="node-memo-preview">
+                  {renderLinkedText(memoText)}
+                </p>
               ))}
             </div>
           )}
@@ -383,47 +385,28 @@ function TreeItem({
           {showDetails && showMemo && (
             <div className="tree-add-drawer mm-drawer">
               <div className="memo-link-editor">
-                <textarea
-                  className="memo-textarea tree-add-input"
-                  placeholder="이 노드에 필요한 메모나 참고자료를 자유롭게 적어두세요..."
-                  value={node.memo || ''}
-                  onChange={(e) => updateNodeFields(node.id, { memo: e.target.value })}
-                  style={{ minHeight: '80px', width: '100%', resize: 'vertical', marginTop: '0.5rem' }}
-                />
-
-                <div className="memo-link-row">
-                  <input
-                    type="url"
-                    className="tree-add-input memo-link-input"
-                    placeholder="https://example.com"
-                    value={newLink}
-                    onChange={(e) => setNewLink(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addMemoLink();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="save-child-btn memo-link-add-btn"
-                    onClick={addMemoLink}
-                  >
-                    링크 첨부
-                  </button>
-                </div>
-
-                {Array.isArray(node.links) && node.links.length > 0 && (
-                  <div className="memo-link-list">
-                    {node.links.map((link) => (
-                      <div key={link} className="memo-link-item">
-                        <a href={link} target="_blank" rel="noopener noreferrer">{link}</a>
-                        <button type="button" onClick={() => removeMemoLink(link)}>삭제</button>
-                      </div>
-                    ))}
+                {getNodeMemos().map((memoText, index) => (
+                  <div key={`${node.id}-memo-edit-${index}`} className="memo-item-editor">
+                    <textarea
+                      className="memo-textarea tree-add-input"
+                      placeholder="메모를 입력하세요. URL은 자동으로 하이퍼링크로 표시됩니다."
+                      value={memoText}
+                      onChange={(e) => updateMemoItem(index, e.target.value)}
+                      style={{ minHeight: '80px', width: '100%', resize: 'vertical', marginTop: '0.5rem' }}
+                    />
+                    <button type="button" className="memo-item-remove-btn" onClick={() => removeMemoItem(index)}>
+                      메모 삭제
+                    </button>
                   </div>
-                )}
+                ))}
+
+                <button
+                  type="button"
+                  className="save-child-btn memo-link-add-btn"
+                  onClick={addMemoItem}
+                >
+                  메모 추가
+                </button>
               </div>
             </div>
           )}

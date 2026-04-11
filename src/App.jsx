@@ -144,7 +144,7 @@ function App() {
       color: 'default',
       isExpanded: true,
       children: [],
-      links: [],
+      memos: [],
       createdAt: new Date().toISOString()
     };
     setTreeNodes(prev => [...prev, newNode]);
@@ -157,7 +157,7 @@ function App() {
       depth: parentDepth + 1,
       isExpanded: true,
       children: [],
-      links: [],
+      memos: [],
       // For depth 4 (subplan) we need specific props
       ...(parentDepth + 1 === 4 ? { completed: false, priority: 'normal', assignedDays: [] } : {}),
       createdAt: new Date().toISOString()
