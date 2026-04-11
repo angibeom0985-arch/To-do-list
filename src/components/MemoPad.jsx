@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 export default function MemoPad({ memos, setMemos }) {
+  const dragItem = useRef();
+  const dragOverItem = useRef();
   // 기본 날짜는 오늘로 세팅
   const todayDate = new Date().toISOString().split('T')[0];
   const [dateInput, setDateInput] = useState(todayDate);
@@ -26,6 +28,17 @@ export default function MemoPad({ memos, setMemos }) {
 
   const deleteMemo = (id) => {
     setMemos((memos || []).filter(memo => memo.id !== id));
+  };
+
+  const handleSort = () => {
+    if (dragItem.current !== undefined && dragOverItem.current !== undefined) {
+      const _memos = [...(memos || [])];
+      const [draggedItem] = _memos.splice(dragItem.current, 1);
+      _memos.splice(dragOverItem.current, 0, draggedItem);
+      setMemos(_memos);
+    }
+    dragItem.current = undefined;
+    dragOverItem.current = undefined;
   };
 
   return (
@@ -79,10 +92,21 @@ export default function MemoPad({ memos, setMemos }) {
         {!memos || memos.length === 0 ? (
           <p className="task-list-empty">아직 기록된 메모가 없습니다.</p>
         ) : (
-          memos.map(memo => (
-            <div key={memo.id} className="memo-card animate-fade-in">
+          memos.map((memo, index) => (
+            <div 
+              key={memo.id} 
+              className="memo-card animate-fade-in"
+              draggable
+              onDragStart={() => (dragItem.current = index)}
+              onDragEnter={() => (dragOverItem.current = index)}
+              onDragEnd={handleSort}
+              onDragOver={(e) => e.preventDefault()}
+            >
               <div className="memo-card-header">
-                <span className="memo-card-date">{memo.date}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div className="drag-handle memo-drag-handle" title="드래그해서 순서 변경">≡</div>
+                  <span className="memo-card-date">{memo.date}</span>
+                </div>
                 <button onClick={() => deleteMemo(memo.id)} className="delete-btn memo-delete" title="메모 삭제">×</button>
               </div>
               <h3 className="memo-card-title">{memo.title}</h3>

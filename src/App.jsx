@@ -127,6 +127,19 @@ function App() {
     });
   };
 
+  const reorderTasks = (sourceIndex, destIndex) => {
+    if (sourceIndex === destIndex) return;
+    setWeeklyTasks(prev => {
+      const dayTasks = [...(prev[activeDay] || [])];
+      const [draggedItem] = dayTasks.splice(sourceIndex, 1);
+      dayTasks.splice(destIndex, 0, draggedItem);
+      return {
+        ...prev,
+        [activeDay]: dayTasks
+      };
+    });
+  };
+
   return (
     <div className="app-container">
       <header className="header animate-fade-in">
@@ -197,6 +210,7 @@ function App() {
               addSubtask={addSubtask}
               toggleSubtask={toggleSubtask}
               deleteSubtask={deleteSubtask}
+              reorderTasks={reorderTasks}
             />
           </div>
         </>

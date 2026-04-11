@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function TaskItem({ task, toggleTask, deleteTask, addSubtask, toggleSubtask, deleteSubtask }) {
+export default function TaskItem({ task, index, onDragStart, onDragEnter, onDragEnd, toggleTask, deleteTask, addSubtask, toggleSubtask, deleteSubtask }) {
   const [subtaskInput, setSubtaskInput] = useState('');
   
   const handleAddSubtask = (e) => {
@@ -16,8 +16,16 @@ export default function TaskItem({ task, toggleTask, deleteTask, addSubtask, tog
   // so we show it as strikethrough only if it is actually completed (which App.jsx syncs if all subtasks are done).
 
   return (
-    <li className={`task-item-container animate-slide-in ${task.completed ? 'completed' : ''}`}>
+    <li 
+      className={`task-item-container animate-slide-in ${task.completed ? 'completed' : ''}`}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnter={onDragEnter}
+      onDragEnd={onDragEnd}
+      onDragOver={(e) => e.preventDefault()}
+    >
       <div className="task-item">
+        <div className="drag-handle" title="드래그해서 순서 변경">≡</div>
         <label className="task-checkbox-wrapper">
           <input 
             type="checkbox" 

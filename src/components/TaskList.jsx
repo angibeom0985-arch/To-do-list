@@ -1,6 +1,17 @@
+import { useRef } from 'react';
 import TaskItem from './TaskItem';
 
-export default function TaskList({ tasks, toggleTask, deleteTask, addSubtask, toggleSubtask, deleteSubtask }) {
+export default function TaskList({ tasks, toggleTask, deleteTask, addSubtask, toggleSubtask, deleteSubtask, reorderTasks }) {
+  const dragItem = useRef();
+  const dragOverItem = useRef();
+
+  const handleSort = () => {
+    if (dragItem.current !== undefined && dragOverItem.current !== undefined) {
+      reorderTasks(dragItem.current, dragOverItem.current);
+    }
+    dragItem.current = undefined;
+    dragOverItem.current = undefined;
+  };
   if (!tasks || tasks.length === 0) {
     return (
       <div className="task-list-empty animate-fade-in">
@@ -11,10 +22,14 @@ export default function TaskList({ tasks, toggleTask, deleteTask, addSubtask, to
 
   return (
     <ul className="task-list">
-      {tasks.map(task => (
+      {tasks.map((task, index) => (
         <TaskItem 
           key={task.id} 
           task={task} 
+          index={index}
+          onDragStart={(e) => (dragItem.current = index)}
+          onDragEnter={(e) => (dragOverItem.current = index)}
+          onDragEnd={handleSort}
           toggleTask={toggleTask} 
           deleteTask={deleteTask} 
           addSubtask={addSubtask}
