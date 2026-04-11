@@ -1,34 +1,59 @@
-﻿import { useRef, useState } from 'react';
+﻿import { useMemo, useRef, useState } from 'react';
 
-const CANVAS_WIDTH = 2200;
-const CANVAS_HEIGHT = 1400;
-const NODE_WIDTH = 220;
-const NODE_HEIGHT = 230;
+const CANVAS_WIDTH = 2400;
+const CANVAS_HEIGHT = 1500;
+const NODE_WIDTH = 240;
+const NODE_HEIGHT_TEXT = 110;
+const NODE_HEIGHT_IMAGE = 220;
+
+const normalizePoint = (x, y) => {
+  const nx = Math.max(10, Math.min(x, CANVAS_WIDTH - NODE_WIDTH - 10));
+  const ny = Math.max(10, Math.min(y, CANVAS_HEIGHT - NODE_HEIGHT_IMAGE - 10));
+  return { x: nx, y: ny };
+};
+
+const normalizeNode = (item, index) => {
+  const fallbackX = 60 + (index % 6) * 270;
+  const fallbackY = 70 + Math.floor(index / 6) * 220;
+  const p = normalizePoint(Number.isFinite(item.x) ? item.x : fallbackX, Number.isFinite(item.y) ? item.y : fallbackY);
+
+  return {
+    id: item.id,
+    title: item.title || '',
+    note: item.note || '',
+    imageUrl: item.imageUrl || '',
+    parentId: item.parentId || null,
+    x: p.x,
+    y: p.y,
+    createdAt: item.createdAt || new Date().toISOString(),
+  };
+};
+
+const getNodeHeight = (node) => (node.imageUrl ? NODE_HEIGHT_IMAGE : NODE_HEIGHT_TEXT);
 
 export default function VisionBoard({ items, setItems }) {
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageFileData, setImageFileData] = useState('');
-  const [lastPoint, setLastPoint] = useState({ x: 100, y: 100 });
+  const [lastPoint, setLastPoint] = useState({ x: 120, y: 120 });
+
   const [draggingId, setDraggingId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState({ title: '', note: '', imageUrl: '' });
 
   const canvasRef = useRef(null);
   const dragRef = useRef(null);
 
-  const normalizePoint = (x, y) => {
-    const clampedX = Math.max(10, Math.min(x, CANVAS_WIDTH - NODE_WIDTH - 10));
-    const clampedY = Math.max(10, Math.min(y, CANVAS_HEIGHT - NODE_HEIGHT - 10));
-    return { x: clampedX, y: clampedY };
-  };
+  const nodes = useMemo(() => (items || []).map((item, index) => normalizeNode(item, index)), [items]);
+  const nodeMap = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
-  const getItemPoint = (item, index) => {
-    if (Number.isFinite(item.x) && Number.isFinite(item.y)) {
-      return normalizePoint(item.x, item.y);
-    }
-    const fallbackX = 40 + (index % 6) * 260;
-    const fallbackY = 40 + Math.floor(index / 6) * 260;
-    return normalizePoint(fallbackX, fallbackY);
+  const setNodes = (updater) => {
+    setItems((prev) => {
+      const normalized = (prev || []).map((item, index) => normalizeNode(item, index));
+      const next = updater(normalized);
+      return next;
+    });
   };
 
   const handleCanvasMouseDown = (e) => {
@@ -38,7 +63,7 @@ export default function VisionBoard({ items, setItems }) {
     setLastPoint(p);
   };
 
-  const handleFileChange = (e) => {
+  const handleNewFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) {
       setImageFileData('');
@@ -50,65 +75,92 @@ export default function VisionBoard({ items, setItems }) {
     reader.readAsDataURL(file);
   };
 
-  const handleAdd = (e) => {
+  const addRootNode = (e) => {
     e.preventDefault();
     const resolvedImage = imageFileData || imageUrl.trim();
     if (!title.trim() && !note.trim() && !resolvedImage) return;
 
     const p = normalizePoint(lastPoint.x, lastPoint.y);
-    const newItem = {
+    const newNode = {
       id: crypto.randomUUID(),
       title: title.trim(),
       note: note.trim(),
       imageUrl: resolvedImage,
+      parentId: null,
       x: p.x,
       y: p.y,
       createdAt: new Date().toISOString(),
     };
 
-    setItems([...(items || []), newItem]);
+    setNodes((prev) => [...prev, newNode]);
     setTitle('');
     setNote('');
     setImageUrl('');
     setImageFileData('');
   };
 
-  const removeItem = (id) => {
-    setItems((items || []).filter((item) => item.id !== id));
+  const addChildNode = (parentId) => {
+    const parent = nodeMap.get(parentId);
+    if (!parent) return;
+
+    const childCount = nodes.filter((n) => n.parentId === parentId).length;
+    const base = normalizePoint(parent.x + 300, parent.y + childCount * 130 - 65);
+
+    const newNode = {
+      id: crypto.randomUUID(),
+      title: '새 노드',
+      note: '',
+      imageUrl: '',
+      parentId,
+      x: base.x,
+      y: base.y,
+      createdAt: new Date().toISOString(),
+    };
+
+    setNodes((prev) => [...prev, newNode]);
   };
 
-  const startDrag = (e, item, index) => {
-    if (e.button !== 0) return;
+  const deleteNodeAndDescendants = (targetId) => {
+    const idsToDelete = new Set([targetId]);
+    let expanded = true;
+
+    while (expanded) {
+      expanded = false;
+      for (const n of nodes) {
+        if (n.parentId && idsToDelete.has(n.parentId) && !idsToDelete.has(n.id)) {
+          idsToDelete.add(n.id);
+          expanded = true;
+        }
+      }
+    }
+
+    setNodes((prev) => prev.filter((n) => !idsToDelete.has(n.id)));
+    if (editingId && idsToDelete.has(editingId)) {
+      setEditingId(null);
+    }
+  };
+
+  const startDrag = (e, node) => {
+    if (e.button !== 0 || !canvasRef.current) return;
     e.preventDefault();
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const point = getItemPoint(item, index);
-
     dragRef.current = {
-      id: item.id,
-      offsetX: e.clientX - rect.left - point.x,
-      offsetY: e.clientY - rect.top - point.y,
+      id: node.id,
+      offsetX: e.clientX - rect.left - node.x,
+      offsetY: e.clientY - rect.top - node.y,
     };
-
-    setDraggingId(item.id);
+    setDraggingId(node.id);
 
     const onMove = (moveEvent) => {
-      const current = dragRef.current;
-      if (!current || !canvasRef.current) return;
-
+      if (!dragRef.current || !canvasRef.current) return;
       const canvasRect = canvasRef.current.getBoundingClientRect();
-      const next = normalizePoint(
-        moveEvent.clientX - canvasRect.left - current.offsetX,
-        moveEvent.clientY - canvasRect.top - current.offsetY,
+      const p = normalizePoint(
+        moveEvent.clientX - canvasRect.left - dragRef.current.offsetX,
+        moveEvent.clientY - canvasRect.top - dragRef.current.offsetY,
       );
 
-      setItems((prev) =>
-        (prev || []).map((node) =>
-          node.id === current.id
-            ? { ...node, x: next.x, y: next.y }
-            : node,
-        ),
-      );
+      setNodes((prev) => prev.map((item) => (item.id === dragRef.current.id ? { ...item, x: p.x, y: p.y } : item)));
     };
 
     const onUp = () => {
@@ -122,76 +174,127 @@ export default function VisionBoard({ items, setItems }) {
     window.addEventListener('mouseup', onUp);
   };
 
+  const openEditor = (node) => {
+    setEditingId(node.id);
+    setEditDraft({
+      title: node.title || '',
+      note: node.note || '',
+      imageUrl: node.imageUrl || '',
+    });
+  };
+
+  const handleEditFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditDraft((prev) => ({ ...prev, imageUrl: typeof reader.result === 'string' ? reader.result : prev.imageUrl }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveEdit = () => {
+    if (!editingId) return;
+    setNodes((prev) =>
+      prev.map((n) =>
+        n.id === editingId
+          ? { ...n, title: editDraft.title.trim(), note: editDraft.note.trim(), imageUrl: editDraft.imageUrl.trim() }
+          : n,
+      ),
+    );
+    setEditingId(null);
+  };
+
+  const connectionLines = nodes
+    .filter((child) => child.parentId && nodeMap.has(child.parentId))
+    .map((child) => {
+      const parent = nodeMap.get(child.parentId);
+      return {
+        key: `${parent.id}-${child.id}`,
+        x1: parent.x + NODE_WIDTH / 2,
+        y1: parent.y + getNodeHeight(parent) / 2,
+        x2: child.x + NODE_WIDTH / 2,
+        y2: child.y + getNodeHeight(child) / 2,
+      };
+    });
+
   return (
     <div className="glass-panel vision-board-panel animate-fade-in" style={{ animationDelay: '0.15s' }}>
       <div className="vision-topbar">
-        <form onSubmit={handleAdd} className="vision-form">
-          <input
-            type="text"
-            className="project-input"
-            placeholder="노드 제목"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <input
-            type="text"
-            className="project-input"
-            placeholder="텍스트 메모"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-          <input
-            type="url"
-            className="project-input"
-            placeholder="이미지 URL (선택)"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-          />
-          <input
-            type="file"
-            accept="image/*"
-            className="project-input"
-            onChange={handleFileChange}
-          />
+        <form onSubmit={addRootNode} className="vision-form">
+          <input type="text" className="project-input" placeholder="노드 제목" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input type="text" className="project-input" placeholder="텍스트 메모" value={note} onChange={(e) => setNote(e.target.value)} />
+          <input type="url" className="project-input" placeholder="이미지 URL (선택)" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+          <input type="file" accept="image/*" className="project-input" onChange={handleNewFileChange} />
           <button type="submit" className="add-btn mini-btn">노드 추가</button>
         </form>
-        <p className="vision-help">캔버스를 클릭한 위치를 기준으로 노드가 추가됩니다. 추가 후 자유롭게 드래그해서 360도 배치할 수 있습니다.</p>
+        <p className="vision-help">캔버스를 클릭한 위치에 노드가 생성됩니다. 각 노드의 + 버튼으로 하위 노드를 여러 개 연결할 수 있습니다.</p>
       </div>
 
       <div className="vision-canvas-wrap">
-        <div
-          ref={canvasRef}
-          className="vision-canvas"
-          onMouseDown={handleCanvasMouseDown}
-          style={{ width: `${CANVAS_WIDTH}px`, height: `${CANVAS_HEIGHT}px` }}
-        >
-          {(items || []).map((item, index) => {
-            const point = getItemPoint(item, index);
-            return (
-              <article
-                key={item.id}
-                className={`vision-node ${draggingId === item.id ? 'dragging' : ''}`}
-                style={{ left: `${point.x}px`, top: `${point.y}px` }}
-                onMouseDown={(e) => startDrag(e, item, index)}
-              >
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.title || 'vision'} className="vision-node-image" draggable={false} />
-                ) : (
-                  <div className="vision-node-image fallback">이미지 없음</div>
-                )}
-                <h3 className="vision-node-title">{item.title || '제목 없음'}</h3>
-                {item.note && <p className="vision-node-note">{item.note}</p>}
-                <button
-                  type="button"
-                  className="vision-node-delete"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={() => removeItem(item.id)}
-                >
-                  ×
+        <div ref={canvasRef} className="vision-canvas" onMouseDown={handleCanvasMouseDown} style={{ width: `${CANVAS_WIDTH}px`, height: `${CANVAS_HEIGHT}px` }}>
+          <svg className="vision-links" width={CANVAS_WIDTH} height={CANVAS_HEIGHT}>
+            {connectionLines.map((line) => (
+              <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} />
+            ))}
+          </svg>
+
+          {nodes.map((node) => (
+            <article
+              key={node.id}
+              className={`vision-node ${draggingId === node.id ? 'dragging' : ''} ${!node.imageUrl ? 'text-only' : ''}`}
+              style={{ left: `${node.x}px`, top: `${node.y}px` }}
+              onMouseDown={(e) => startDrag(e, node)}
+            >
+              {node.imageUrl && <img src={node.imageUrl} alt={node.title || 'vision node'} className="vision-node-image" draggable={false} />}
+              <h3 className="vision-node-title">{node.title || '제목 없음'}</h3>
+              {node.note && <p className="vision-node-note">{node.note}</p>}
+
+              <div className="vision-node-actions">
+                <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => addChildNode(node.id)}>
+                  +
                 </button>
-              </article>
-            );
-          })}
+                <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => openEditor(node)}>
+                  ✎
+                </button>
+                <button type="button" className="vision-node-action" onMouseDown={(e) => e.stopPropagation()} onClick={() => deleteNodeAndDescendants(node.id)}>
+                  -
+                </button>
+              </div>
+
+              {editingId === node.id && (
+                <div className="vision-node-editor" onMouseDown={(e) => e.stopPropagation()}>
+                  <input
+                    type="text"
+                    className="project-input"
+                    placeholder="제목"
+                    value={editDraft.title}
+                    onChange={(e) => setEditDraft((prev) => ({ ...prev, title: e.target.value }))}
+                  />
+                  <input
+                    type="text"
+                    className="project-input"
+                    placeholder="메모"
+                    value={editDraft.note}
+                    onChange={(e) => setEditDraft((prev) => ({ ...prev, note: e.target.value }))}
+                  />
+                  <input
+                    type="url"
+                    className="project-input"
+                    placeholder="이미지 URL"
+                    value={editDraft.imageUrl}
+                    onChange={(e) => setEditDraft((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                  />
+                  <input type="file" accept="image/*" className="project-input" onChange={handleEditFileChange} />
+                  <div className="vision-editor-actions">
+                    <button type="button" className="save-child-btn" onClick={saveEdit}>저장</button>
+                    <button type="button" className="save-child-btn" onClick={() => setEditingId(null)}>닫기</button>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))}
         </div>
       </div>
     </div>

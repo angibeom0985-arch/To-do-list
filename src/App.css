@@ -1506,10 +1506,21 @@
     rgba(255, 255, 255, 0.02);
 }
 
+.vision-links {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.vision-links line {
+  stroke: #38bdf8;
+  stroke-width: 2;
+}
+
 .vision-node {
   position: absolute;
-  width: 220px;
-  min-height: 210px;
+  width: 240px;
+  min-height: 110px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--glass-border);
   border-radius: 14px;
@@ -1519,6 +1530,7 @@
   gap: 0.4rem;
   cursor: grab;
   user-select: none;
+  z-index: 2;
 }
 
 .vision-node.dragging {
@@ -1528,6 +1540,10 @@
 
 .vision-node:active {
   cursor: grabbing;
+}
+
+.vision-node.text-only {
+  min-height: 84px;
 }
 
 .vision-node-image {
@@ -1563,17 +1579,35 @@
   word-break: break-word;
 }
 
-.vision-node-delete {
-  position: absolute;
-  top: 0.4rem;
-  right: 0.4rem;
-  width: 26px;
-  height: 26px;
+.vision-node-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.vision-node-action {
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
   border: 1px solid var(--glass-border);
   background: rgba(0, 0, 0, 0.15);
-  color: var(--text-muted);
+  color: var(--text-main);
   cursor: pointer;
+}
+
+.vision-node-editor {
+  margin-top: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--glass-border);
+}
+
+.vision-editor-actions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
 }
 
 @media (max-width: 900px) {
