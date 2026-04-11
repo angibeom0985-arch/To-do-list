@@ -1,71 +1,71 @@
 import { useMemo } from 'react';
 
-export default function ProgressTracker({ tasks, history }) {
-  const stats = useMemo(() => {
+const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
+export default function ProgressTracker({ weeklyTasks, activeDay }) {
+  // Calculate stats for the currently selected day
+  const activeStats = useMemo(() => {
+    const tasks = weeklyTasks[activeDay] || [];
     const total = tasks.length;
     const completed = tasks.filter(t => t.completed).length;
     const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
     return { total, completed, percentage };
-  }, [tasks]);
+  }, [weeklyTasks, activeDay]);
 
-  // Generate the last 7 days for the history grid
-  const last7Days = useMemo(() => {
+  // Generate stats for all 7 days for the chart
+  const weeklyStats = useMemo(() => {
     const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-      
-      // Use today's live stats if it's today, otherwise use history
-      let percentage = 0;
-      if (i === 0) {
-        percentage = stats.percentage;
-      } else {
-        percentage = history[dateStr] || 0;
-      }
+    // Start from Monday (1) to Sunday (0) to feel like a standard week, or Sunday(0) to Saturday(6)
+    // Let's do Mon-Sun order: 1, 2, 3, 4, 5, 6, 0
+    const weekOrder = [1, 2, 3, 4, 5, 6, 0];
+    
+    for (const dayIndex of weekOrder) {
+      const tasks = weeklyTasks[dayIndex] || [];
+      const total = tasks.length;
+      const completed = tasks.filter(t => t.completed).length;
+      const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
       
       days.push({
-        date: dateStr,
-        label: dayName,
+        dayIndex,
+        label: dayNames[dayIndex],
         percentage,
-        isToday: i === 0
+        isActive: dayIndex === activeDay
       });
     }
     return days;
-  }, [history, stats.percentage]);
+  }, [weeklyTasks, activeDay]);
 
   return (
     <div className="glass-panel animate-fade-in" style={{ animationDelay: '0.2s' }}>
       <div className="progress-container">
         <div className="progress-info">
-          <span className="label">Today's Progress</span>
-          <span className="percent">{stats.percentage}%</span>
+          <span className="label">현재 요일 진행률 ({dayNames[activeDay]}요일)</span>
+          <span className="percent">{activeStats.percentage}%</span>
         </div>
         
         <div className="progress-bar-bg">
           <div 
             className="progress-bar-fill" 
-            style={{ width: `${stats.percentage}%` }}
+            style={{ width: `${activeStats.percentage}%` }}
           />
         </div>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-          {stats.completed} of {stats.total} tasks completed
+          {activeStats.total}개의 할 일 중 {activeStats.completed}개 완료됨
         </p>
       </div>
 
       <div className="history-section">
-        <h3 className="history-title">Last 7 Days</h3>
+        <h3 className="history-title">주간 진행 상황</h3>
         <div className="history-grid">
-          {last7Days.map((day) => (
-            <div key={day.date} className="history-day" title={`${day.date}: ${day.percentage}% completed`}>
+          {weeklyStats.map((day) => (
+            <div key={day.dayIndex} className="history-day" title={`${day.label}요일: ${day.percentage}% 완료됨`}>
               <div 
                 className="history-ring" 
                 style={{ '--angle': `${day.percentage}%` }}
               >
                 <div className="history-ring-fill" />
               </div>
-              <span className="history-day-label" style={{ color: day.isToday ? 'var(--primary)' : 'var(--text-muted)' }}>
+              <span className="history-day-label" style={{ color: day.isActive ? 'var(--primary)' : 'var(--text-muted)', fontWeight: day.isActive ? 'bold' : 'normal' }}>
                 {day.label}
               </span>
             </div>

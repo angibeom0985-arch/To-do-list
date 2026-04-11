@@ -1,26 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './App.css';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import TaskList from './components/TaskList';
 import ProgressTracker from './components/ProgressTracker';
 
+const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+// We'll display tabs in Monday -> Sunday order
+const weekOrder = [1, 2, 3, 4, 5, 6, 0];
+
 function App() {
-  const [tasks, setTasks] = useLocalStorage('todo-tasks', []);
-  const [history, setHistory] = useLocalStorage('todo-history', {});
+  const initialWeeklyTasks = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+  const [weeklyTasks, setWeeklyTasks] = useLocalStorage('weekly-tasks', initialWeeklyTasks);
+  const [activeDay, setActiveDay] = useState(new Date().getDay()); // Default to today
   const [inputValue, setInputValue] = useState('');
 
-  // Save today's progress to history whenever tasks change
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.completed).length;
-    const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
-    
-    setHistory(prev => ({
-      ...prev,
-      [today]: percentage
-    }));
-  }, [tasks, setHistory]);
+  // The active tasks for the currently selected day
+  const currentTasks = weeklyTasks[activeDay] || [];
 
   const addTask = (e) => {
     e.preventDefault();
@@ -33,39 +28,67 @@ function App() {
       createdAt: new Date().toISOString()
     };
     
-    setTasks([newTask, ...tasks]);
+    setWeeklyTasks(prev => ({
+      ...prev,
+      [activeDay]: [newTask, ...(prev[activeDay] || [])]
+    }));
+    
     setInputValue('');
   };
 
   const toggleTask = (id) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
+    setWeeklyTasks(prev => {
+      const dayTasks = prev[activeDay] || [];
+      return {
+        ...prev,
+        [activeDay]: dayTasks.map(task => 
+          task.id === id ? { ...task, completed: !task.completed } : task
+        )
+      };
+    });
   };
 
   const deleteTask = (id) => {
-    setTasks(tasks.filter(task => task.id !== id));
+    setWeeklyTasks(prev => {
+      const dayTasks = prev[activeDay] || [];
+      return {
+        ...prev,
+        [activeDay]: dayTasks.filter(task => task.id !== id)
+      };
+    });
   };
 
   return (
     <div className="app-container">
       <header className="header animate-fade-in">
-        <h1>Tracker.</h1>
-        <p>Stay focused, track your daily progress.</p>
+        <h1>진행도 추적기.</h1>
+        <p>집중력을 유지하고, 매일매일의 루틴을 완성하세요.</p>
       </header>
       
-      <ProgressTracker tasks={tasks} history={history} />
+      <div className="day-tabs animate-fade-in" style={{ animationDelay: '0.1s' }}>
+        {weekOrder.map((dayIndex) => (
+          <button 
+            key={dayIndex}
+            className={`day-tab ${activeDay === dayIndex ? 'active' : ''}`}
+            onClick={() => setActiveDay(dayIndex)}
+          >
+            {dayNames[dayIndex]}
+          </button>
+        ))}
+      </div>
+      
+      <ProgressTracker weeklyTasks={weeklyTasks} activeDay={activeDay} />
       
       <div className="glass-panel animate-fade-in" style={{ animationDelay: '0.3s' }}>
         <form onSubmit={addTask} className="task-form">
           <input 
             type="text" 
             className="task-input" 
-            placeholder="What needs to be done?" 
+            placeholder="추가할 할 일을 입력하세요..." 
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
           />
-          <button type="submit" className="add-btn" aria-label="Add task">
+          <button type="submit" className="add-btn" aria-label="할 일 추가">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -74,7 +97,7 @@ function App() {
         </form>
         
         <TaskList 
-          tasks={tasks} 
+          tasks={currentTasks} 
           toggleTask={toggleTask} 
           deleteTask={deleteTask} 
         />
