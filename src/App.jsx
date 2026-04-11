@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import './App.css';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import ProjectDashboard from './components/ProjectDashboard';
 import DailyView from './components/DailyView';
 import MemoPad from './components/MemoPad';
 import ManagePage from './components/ManagePage';
+import VisionBoard from './components/VisionBoard';
 
 const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 const weekOrder = [1, 2, 3, 4, 5, 6, 0];
@@ -12,9 +13,10 @@ const weekOrder = [1, 2, 3, 4, 5, 6, 0];
 function App() {
   const [treeNodes, setTreeNodes] = useLocalStorage('projects-v2', []);
   const [globalMemos, setGlobalMemos] = useLocalStorage('global-memos-list', []);
-  const [activeDay, setActiveDay] = useState(new Date().getDay()); // 0-6, or 'memo'
+  const [visionItems, setVisionItems] = useLocalStorage('vision-board-items', []);
+  const [activeDay, setActiveDay] = useState(new Date().getDay());
   const [theme, setTheme] = useLocalStorage('app-theme', 'dark');
-  const [currentView, setCurrentView] = useState('main'); // 'main' | 'manage'
+  const [currentView, setCurrentView] = useState('main'); // 'main' | 'vision' | 'manage'
 
   useEffect(() => {
     if (theme === 'light') {
@@ -24,9 +26,8 @@ function App() {
     }
   }, [theme]);
 
-  // Tree Helper Functions
   const mapNodes = (nodes, targetId, updateFn) => {
-    return nodes.map(node => {
+    return nodes.map((node) => {
       if (node.id === targetId) return updateFn(node);
       if (node.children) return { ...node, children: mapNodes(node.children, targetId, updateFn) };
       return node;
@@ -35,12 +36,12 @@ function App() {
 
   const filterNodes = (nodes, targetId) => {
     return nodes
-      .filter(node => node.id !== targetId)
-      .map(node => ({ ...node, children: node.children ? filterNodes(node.children, targetId) : [] }));
+      .filter((node) => node.id !== targetId)
+      .map((node) => ({ ...node, children: node.children ? filterNodes(node.children, targetId) : [] }));
   };
 
   const _addChild = (nodes, parentId, newNode) => {
-    return nodes.map(node => {
+    return nodes.map((node) => {
       if (node.id === parentId) {
         return { ...node, children: [...(node.children || []), newNode], isExpanded: true };
       }
@@ -93,7 +94,7 @@ function App() {
     return {
       ...node,
       depth,
-      children: (node.children || []).map(child => rebalanceDepth(child, depth + 1)),
+      children: (node.children || []).map((child) => rebalanceDepth(child, depth + 1)),
     };
   };
 
@@ -135,7 +136,6 @@ function App() {
     return { nextNodes, inserted };
   };
 
-  // Node Actions
   const addRootProject = (title) => {
     const newNode = {
       id: crypto.randomUUID(),
@@ -145,9 +145,9 @@ function App() {
       isExpanded: true,
       children: [],
       memos: [],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    setTreeNodes(prev => [...prev, newNode]);
+    setTreeNodes((prev) => [...prev, newNode]);
   };
 
   const addChildNode = (parentId, parentDepth, title) => {
@@ -158,35 +158,34 @@ function App() {
       isExpanded: true,
       children: [],
       memos: [],
-      // For depth 4 (subplan) we need specific props
       ...(parentDepth + 1 === 4 ? { completed: false, priority: 'normal', assignedDays: [] } : {}),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    setTreeNodes(prev => _addChild(prev, parentId, newNode));
+    setTreeNodes((prev) => _addChild(prev, parentId, newNode));
   };
 
   const deleteNode = (nodeId) => {
-    setTreeNodes(prev => filterNodes(prev, nodeId));
+    setTreeNodes((prev) => filterNodes(prev, nodeId));
   };
 
   const updateNodeFields = (nodeId, fieldsObj) => {
-    setTreeNodes(prev => mapNodes(prev, nodeId, node => ({ ...node, ...fieldsObj })));
+    setTreeNodes((prev) => mapNodes(prev, nodeId, (node) => ({ ...node, ...fieldsObj })));
   };
 
   const toggleDayAssignment = (nodeId, dayIndex) => {
-    setTreeNodes(prev => mapNodes(prev, nodeId, node => {
-      const days = node.assignedDays || [];
-      const newDays = days.includes(dayIndex) 
-        ? days.filter(d => d !== dayIndex) 
-        : [...days, dayIndex];
-      return { ...node, assignedDays: newDays };
-    }));
+    setTreeNodes((prev) =>
+      mapNodes(prev, nodeId, (node) => {
+        const days = node.assignedDays || [];
+        const newDays = days.includes(dayIndex) ? days.filter((d) => d !== dayIndex) : [...days, dayIndex];
+        return { ...node, assignedDays: newDays };
+      }),
+    );
   };
 
   const moveNode = (draggedId, targetId, position = 'after') => {
     if (!draggedId || draggedId === targetId) return;
 
-    setTreeNodes(prev => {
+    setTreeNodes((prev) => {
       const draggedNode = findNodeById(prev, draggedId);
       const targetNode = targetId ? findNodeById(prev, targetId) : null;
 
@@ -212,46 +211,51 @@ function App() {
   return (
     <div className="app-container">
       <header className="header animate-fade-in" style={{ marginBottom: '0.5rem', position: 'relative' }}>
-        <button 
+        <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className="theme-toggle"
           title="테마 변경"
         >
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
-        <h1 style={{ fontSize: '2.5rem', background: '-webkit-linear-gradient(45deg, var(--primary), #d8b4fe)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0 }}>
-          목표 지향 스케줄러.
+        <h1
+          style={{
+            fontSize: '2.5rem',
+            background: '-webkit-linear-gradient(45deg, var(--primary), #d8b4fe)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            margin: 0,
+          }}
+        >
+          목표 달성 지표
         </h1>
-        <p>4단계 아웃라이너로 세밀하게 기획하고 요일별로 실천하세요.</p>
-        
+
         <div className="view-selector" style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.5rem' }}>
-          <button 
-            className={`view-tab ${currentView === 'main' ? 'active' : ''}`}
-            onClick={() => setCurrentView('main')}
-          >
-            🏠 스케줄러 보드
+          <button className={`view-tab ${currentView === 'main' ? 'active' : ''}`} onClick={() => setCurrentView('main')}>
+            🔥 스케줄러 보드
           </button>
-          <button 
-            className={`view-tab ${currentView === 'manage' ? 'active' : ''}`}
-            onClick={() => setCurrentView('manage')}
-          >
+          <button className={`view-tab ${currentView === 'vision' ? 'active' : ''}`} onClick={() => setCurrentView('vision')}>
+            🧭 비전 보드
+          </button>
+          <button className={`view-tab ${currentView === 'manage' ? 'active' : ''}`} onClick={() => setCurrentView('manage')}>
             ⚙️ 프로젝트 구성 관리
           </button>
         </div>
       </header>
 
       {currentView === 'manage' ? (
-        <ManagePage 
+        <ManagePage
           treeNodes={treeNodes}
           addRootProject={addRootProject}
           addChildNode={addChildNode}
-          updateNodeFields={updateNodeFields} 
-          deleteNode={deleteNode} 
+          updateNodeFields={updateNodeFields}
+          deleteNode={deleteNode}
         />
+      ) : currentView === 'vision' ? (
+        <VisionBoard items={visionItems} setItems={setVisionItems} />
       ) : (
         <>
-          {/* 1. 기획 영역: 4-Depth Outliner Dashboard */}
-          <ProjectDashboard 
+          <ProjectDashboard
             treeNodes={treeNodes}
             addRootProject={addRootProject}
             addChildNode={addChildNode}
@@ -261,11 +265,10 @@ function App() {
             moveNode={moveNode}
           />
 
-          {/* 2. 실행 영역: Daily View & Memos */}
           <div className="execution-section animate-fade-in" style={{ animationDelay: '0.2s', marginTop: '1rem' }}>
             <div className="day-tabs">
               {weekOrder.map((dayIndex) => (
-                <button 
+                <button
                   key={dayIndex}
                   className={`day-tab ${activeDay === dayIndex ? 'active' : ''}`}
                   onClick={() => setActiveDay(dayIndex)}
@@ -273,20 +276,17 @@ function App() {
                   {dayNames[dayIndex]}
                 </button>
               ))}
-              <button 
-                className={`day-tab memo-tab ${activeDay === 'memo' ? 'active' : ''}`}
-                onClick={() => setActiveDay('memo')}
-              >
+              <button className={`day-tab memo-tab ${activeDay === 'memo' ? 'active' : ''}`} onClick={() => setActiveDay('memo')}>
                 자유 메모
               </button>
             </div>
-            
+
             {activeDay === 'memo' ? (
               <MemoPad memos={globalMemos} setMemos={setGlobalMemos} />
             ) : (
-              <DailyView 
-                activeDay={activeDay} 
-                treeNodes={treeNodes} 
+              <DailyView
+                activeDay={activeDay}
+                treeNodes={treeNodes}
                 updateNodeFields={updateNodeFields}
                 toggleDayAssignment={toggleDayAssignment}
               />
