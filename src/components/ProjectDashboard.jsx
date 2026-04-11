@@ -86,7 +86,6 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
     if (newChildTitle.trim()) {
       addChildNode(node.id, node.depth, newChildTitle.trim());
       setNewChildTitle('');
-      updateNodeFields(node.id, { isExpanded: true });
       // Do not setIsAdding(false) so the user can continuously add multiple children
     } else {
       setIsAdding(false);
