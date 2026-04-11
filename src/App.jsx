@@ -217,7 +217,9 @@ function App() {
 
       {currentView === 'manage' ? (
         <ManagePage 
-          treeNodes={treeNodes} 
+          treeNodes={treeNodes}
+          addRootProject={addRootProject}
+          addChildNode={addChildNode}
           updateNodeFields={updateNodeFields} 
           deleteNode={deleteNode} 
         />
