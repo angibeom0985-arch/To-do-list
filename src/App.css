@@ -975,6 +975,19 @@
   word-break: break-word;
 }
 
+.node-link-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.node-link-preview {
+  font-size: 0.82rem;
+  color: var(--primary);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
 .mm-actions {
   display: flex;
   gap: 0.4rem;
@@ -1066,6 +1079,63 @@
   border: 1px dashed var(--primary-light);
   display: flex;
   gap: 0.5rem;
+}
+
+.memo-link-editor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.memo-link-row {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.memo-link-input {
+  margin-top: 0;
+}
+
+.memo-link-add-btn {
+  min-height: 34px;
+  padding: 0.35rem 0.65rem;
+}
+
+.memo-link-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.memo-link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0.3rem 0.45rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.memo-link-item a {
+  color: var(--primary);
+  font-size: 0.82rem;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.memo-link-item button {
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 /* Horizontal Connector Lines */

@@ -125,6 +125,7 @@ function TreeItem({
   const [newChildTitle, setNewChildTitle] = useState('');
   const [showDetails, setShowDetails] = useState(false);
   const [showMemo, setShowMemo] = useState(false);
+  const [newLink, setNewLink] = useState('');
 
   const submitAddChild = () => {
     if (newChildTitle.trim()) {
@@ -146,6 +147,36 @@ function TreeItem({
   const handleCancelAddChild = (e) => {
     e.preventDefault();
     setIsAdding(false);
+  };
+
+  const normalizeUrl = (value) => {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  };
+
+  const addMemoLink = () => {
+    const normalized = normalizeUrl(newLink);
+    if (!normalized) return;
+
+    try {
+      const validUrl = new URL(normalized).toString();
+      const prevLinks = Array.isArray(node.links) ? node.links : [];
+      if (prevLinks.includes(validUrl)) {
+        setNewLink('');
+        return;
+      }
+      updateNodeFields(node.id, { links: [...prevLinks, validUrl] });
+      setNewLink('');
+    } catch {
+      // ignore invalid urls
+    }
+  };
+
+  const removeMemoLink = (link) => {
+    const prevLinks = Array.isArray(node.links) ? node.links : [];
+    updateNodeFields(node.id, { links: prevLinks.filter(item => item !== link) });
   };
 
   const getPlaceholder = () => {
@@ -213,6 +244,24 @@ function TreeItem({
 
           {node.memo?.trim() && (
             <p className="node-memo-preview">{node.memo}</p>
+          )}
+
+          {Array.isArray(node.links) && node.links.length > 0 && (
+            <div className="node-link-preview-list">
+              {node.links.map((link) => (
+                <a
+                  key={link}
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="node-link-preview"
+                  title={link}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {link}
+                </a>
+              ))}
+            </div>
           )}
 
           {/* Body: Depth 1 specific UI */}
@@ -296,13 +345,49 @@ function TreeItem({
         <div className="mm-drawer-container">
           {showDetails && showMemo && (
             <div className="tree-add-drawer mm-drawer">
-              <textarea
-                className="memo-textarea tree-add-input"
-                placeholder="이 노드에 필요한 메모나 참고자료를 자유롭게 적어두세요..."
-                value={node.memo || ''}
-                onChange={(e) => updateNodeFields(node.id, { memo: e.target.value })}
-                style={{ minHeight: '80px', width: '100%', resize: 'vertical', marginTop: '0.5rem' }}
-              />
+              <div className="memo-link-editor">
+                <textarea
+                  className="memo-textarea tree-add-input"
+                  placeholder="이 노드에 필요한 메모나 참고자료를 자유롭게 적어두세요..."
+                  value={node.memo || ''}
+                  onChange={(e) => updateNodeFields(node.id, { memo: e.target.value })}
+                  style={{ minHeight: '80px', width: '100%', resize: 'vertical', marginTop: '0.5rem' }}
+                />
+
+                <div className="memo-link-row">
+                  <input
+                    type="url"
+                    className="tree-add-input memo-link-input"
+                    placeholder="https://example.com"
+                    value={newLink}
+                    onChange={(e) => setNewLink(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addMemoLink();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="save-child-btn memo-link-add-btn"
+                    onClick={addMemoLink}
+                  >
+                    링크 첨부
+                  </button>
+                </div>
+
+                {Array.isArray(node.links) && node.links.length > 0 && (
+                  <div className="memo-link-list">
+                    {node.links.map((link) => (
+                      <div key={link} className="memo-link-item">
+                        <a href={link} target="_blank" rel="noopener noreferrer">{link}</a>
+                        <button type="button" onClick={() => removeMemoLink(link)}>삭제</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
