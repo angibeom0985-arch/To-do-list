@@ -136,7 +136,10 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
               </label>
             )}
             
-            <span className="tree-title">{node.title}</span>
+            <span className="tree-title">
+              {node.title}
+              {node.depth === 1 && ` (${calculateProgress(node)}%)`}
+            </span>
 
             <div className="mm-actions">
               <button
@@ -154,7 +157,6 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
           {/* Body: Depth 1 specific UI */}
           {showDetails && node.depth === 1 && (
             <div className="mm-depth1-extras">
-              <button className="expand-btn" onClick={() => setShowMemo(!showMemo)} title="메모">📝</button>
               <div className="color-picker-mini">
                 {Object.keys(COLOR_PALETTE).map(c => (
                   <div 
@@ -166,7 +168,6 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
                   />
                 ))}
               </div>
-              <span className="project-pct">{calculateProgress(node)}%</span>
             </div>
           )}
 
@@ -211,6 +212,14 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
             </div>
           )}
 
+          {showDetails && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <button className="expand-btn" onClick={() => setShowMemo(!showMemo)} title="메모">
+                {showMemo ? '메모 닫기' : '메모'}
+              </button>
+            </div>
+          )}
+
           {/* Expand/Collapse Toggle Button (floating at bottom of card, or right side) */}
           {showDetails && hasChildren && (
             <button 
@@ -224,11 +233,11 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
 
         {/* Memo Drawer stays under the parent card */}
         <div className="mm-drawer-container">
-          {showDetails && showMemo && node.depth === 1 && (
+          {showDetails && showMemo && (
             <div className="tree-add-drawer mm-drawer">
               <textarea 
                 className="memo-textarea tree-add-input" 
-                placeholder="이 프로젝트에 필요한 링크나 참고자료를 자유롭게 적어두세요..."
+                placeholder="이 노드에 필요한 메모나 참고자료를 자유롭게 적어두세요..."
                 value={node.memo || ''}
                 onChange={(e) => updateNodeFields(node.id, { memo: e.target.value })}
                 style={{ minHeight: '80px', width: '100%', resize: 'vertical', marginTop: '0.5rem' }}
