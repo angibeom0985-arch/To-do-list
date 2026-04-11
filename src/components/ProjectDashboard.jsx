@@ -10,23 +10,24 @@ const COLOR_PALETTE = {
 
 const DAY_LETTERS = ['일', '월', '화', '수', '목', '금', '토'];
 
-// Recursively calculates completion based on depth-4 children
+// Recursively calculates completion based on depth >= 2
 const calculateProgress = (node) => {
-  let leaves = 0;
+  let tasks = 0;
   let completed = 0;
 
   const traverse = (n) => {
-    if (n.depth === 4) {
-      leaves++;
+    if (n.depth > 1) {
+      tasks++;
       if (n.completed) completed++;
-    } else if (n.children && n.children.length > 0) {
+    }
+    if (n.children && n.children.length > 0) {
       n.children.forEach(traverse);
     }
   };
   traverse(node);
 
-  if (leaves === 0) return 0;
-  return Math.round((completed / leaves) * 100);
+  if (tasks === 0) return 0;
+  return Math.round((completed / tasks) * 100);
 };
 
 export default function ProjectDashboard({ treeNodes, addRootProject, addChildNode, deleteNode, updateNodeFields, toggleDayAssignment }) {
@@ -102,7 +103,8 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
     return '';
   };
 
-  const isLeaf = node.depth === 4;
+  const isTaskNode = node.depth >= 2;
+  const isLeaf = node.depth >= 4; // To prevent adding children beyond depth 4
   const projectColor = node.color || 'default';
   const customStyles = node.depth === 1 ? {
     '--primary': COLOR_PALETTE[projectColor].main,
@@ -111,19 +113,21 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
 
   return (
     <div className={`tree-item depth-${node.depth}`} style={customStyles}>
-      <div className={`tree-item-content ${isLeaf && node.completed ? 'completed' : ''}`}>
+      <div className={`tree-item-content ${isTaskNode && node.completed ? 'completed' : ''}`}>
         
         {/* Expand / Collapse arrow */}
-        {!isLeaf ? (
-          <button 
-            className={`expand-btn ${node.isExpanded ? 'expanded' : ''}`}
-            onClick={() => updateNodeFields(node.id, { isExpanded: !node.isExpanded })}
-          >
-            ▶
-          </button>
-        ) : (
-          <label className="task-checkbox-wrapper mini-box leaf-checkbox">
-            <input type="checkbox" checked={node.completed} onChange={() => updateNodeFields(node.id, { completed: !node.completed })} />
+        <button 
+          className={`expand-btn ${node.isExpanded ? 'expanded' : ''}`}
+          onClick={() => updateNodeFields(node.id, { isExpanded: !node.isExpanded })}
+          style={{ visibility: node.children && node.children.length > 0 ? 'visible' : 'hidden', width: '20px' }}
+        >
+          ▶
+        </button>
+
+        {/* Checkbox for depth 2+ */}
+        {isTaskNode && (
+          <label className="task-checkbox-wrapper mini-box leaf-checkbox" style={{ marginRight: '0.4rem', marginLeft: '-0.2rem' }}>
+            <input type="checkbox" checked={node.completed || false} onChange={() => updateNodeFields(node.id, { completed: !node.completed })} />
             <span className="task-checkbox-custom mini-box"></span>
           </label>
         )}
@@ -131,7 +135,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
         {/* Title */}
         <span className="tree-title">
           {node.title}
-          {isLeaf && node.priority && node.priority !== 'normal' && (
+          {isTaskNode && node.priority && node.priority !== 'normal' && (
             <span className={`priority-badge ${node.priority}`} style={{ marginLeft: '0.5rem' }}>
               {node.priority === 'urgent' && '⏰ 급함'}
               {node.priority === 'important' && '💰 중요'}
@@ -169,15 +173,15 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
           </div>
         )}
 
-        {/* Depth 4 Contexts */}
-        {isLeaf && (
+        {/* Depth 2+ Contexts (Priority & Day Assignment) */}
+        {isTaskNode && (
           <div className="leaf-assignments">
             <select 
               value={node.priority || 'normal'} 
               onChange={(e) => updateNodeFields(node.id, { priority: e.target.value })}
               className="mini-select"
             >
-              <option value="normal">일반</option>
+              <option value="normal">우선순위</option>
               <option value="urgent">⏰ 급함</option>
               <option value="important">💰 중요</option>
               <option value="both">🔥 집중</option>

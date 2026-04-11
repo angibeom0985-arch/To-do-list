@@ -1083,9 +1083,9 @@
 /* Actions */
 .tree-actions {
   display: flex;
-  gap: 0.2rem;
-  opacity: 0;
+  gap: 0.4rem;
   transition: opacity 0.2s;
+  margin-left: 0.5rem;
 }
 
 .tree-item-content:hover .tree-actions {

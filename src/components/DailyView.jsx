@@ -16,15 +16,15 @@ export default function DailyView({ activeDay, treeNodes, updateNodeFields, togg
     const currentPath = [...pathStack, node.title];
     const currentColor = node.depth === 1 ? (node.color || 'default') : color;
 
-    if (node.depth === 4) {
-      if ((node.assignedDays || []).includes(activeDay)) {
-        dailyTasks.push({
-          ...node,
-          path: pathStack.join(' > '), // Extracting parents
-          projectColor: currentColor
-        });
-      }
-    } else if (node.children) {
+    if (node.depth >= 2 && (node.assignedDays || []).includes(activeDay)) {
+      dailyTasks.push({
+        ...node,
+        path: pathStack.join(' > '), // Extracting parents
+        projectColor: currentColor
+      });
+    }
+    
+    if (node.children && node.children.length > 0) {
       node.children.forEach(child => traverse(child, currentPath, currentColor));
     }
   };
@@ -41,7 +41,7 @@ export default function DailyView({ activeDay, treeNodes, updateNodeFields, togg
       <div className="daily-header">
         <div style={{ flex: 1 }}>
           <h2 style={{ fontSize: '1.4rem', margin: '0 0 0.5rem' }}>오늘의 스케줄 실행 🚀</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>4단계 기획 보드에서 이 요일로 복사된 세부 임무들입니다.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>기획 보드에서 이 요일로 복사된 임무들입니다.</p>
         </div>
         
         <div className="daily-progress-wrap">
