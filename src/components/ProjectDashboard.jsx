@@ -30,8 +30,10 @@ const calculateProgress = (node) => {
   return Math.round((completed / tasks) * 100);
 };
 
-export default function ProjectDashboard({ treeNodes, addRootProject, addChildNode, deleteNode, updateNodeFields, toggleDayAssignment }) {
+export default function ProjectDashboard({ treeNodes, addRootProject, addChildNode, deleteNode, updateNodeFields, toggleDayAssignment, moveNode }) {
   const [newProjectTitle, setNewProjectTitle] = useState('');
+  const [draggedNodeId, setDraggedNodeId] = useState(null);
+  const [dragOverNodeId, setDragOverNodeId] = useState(null);
 
   const handleAddRoot = (e) => {
     e.preventDefault();
@@ -39,6 +41,29 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
       addRootProject(newProjectTitle.trim());
       setNewProjectTitle('');
     }
+  };
+
+  const handleNodeDragStart = (nodeId) => {
+    setDraggedNodeId(nodeId);
+  };
+
+  const handleNodeDragEnter = (nodeId) => {
+    if (draggedNodeId && draggedNodeId !== nodeId) {
+      setDragOverNodeId(nodeId);
+    }
+  };
+
+  const handleNodeDrop = (targetId) => {
+    if (draggedNodeId && draggedNodeId !== targetId) {
+      moveNode(draggedNodeId, targetId);
+    }
+    setDraggedNodeId(null);
+    setDragOverNodeId(null);
+  };
+
+  const handleNodeDragEnd = () => {
+    setDraggedNodeId(null);
+    setDragOverNodeId(null);
   };
 
   return (
@@ -69,6 +94,12 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
               deleteNode={deleteNode}
               updateNodeFields={updateNodeFields}
               toggleDayAssignment={toggleDayAssignment}
+              draggedNodeId={draggedNodeId}
+              dragOverNodeId={dragOverNodeId}
+              onNodeDragStart={handleNodeDragStart}
+              onNodeDragEnter={handleNodeDragEnter}
+              onNodeDrop={handleNodeDrop}
+              onNodeDragEnd={handleNodeDragEnd}
             />
           ))
         )}
@@ -77,7 +108,19 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
   );
 }
 
-function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayAssignment }) {
+function TreeItem({
+  node,
+  addChildNode,
+  deleteNode,
+  updateNodeFields,
+  toggleDayAssignment,
+  draggedNodeId,
+  dragOverNodeId,
+  onNodeDragStart,
+  onNodeDragEnter,
+  onNodeDrop,
+  onNodeDragEnd,
+}) {
   const [isAdding, setIsAdding] = useState(false);
   const [newChildTitle, setNewChildTitle] = useState('');
   const [showDetails, setShowDetails] = useState(false);
@@ -125,7 +168,21 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
     <div className={`mindmap-group depth-${node.depth} ${hasChildren && node.isExpanded ? 'has-children' : ''}`} style={customStyles}>
 
       <div className="mindmap-node-anchor">
-        <div className={`mindmap-node-card ${isTaskNode && node.completed ? 'completed' : ''}`}>
+        <div
+          className={`mindmap-node-card ${isTaskNode && node.completed ? 'completed' : ''} ${draggedNodeId === node.id ? 'dragging' : ''} ${dragOverNodeId === node.id ? 'drag-over' : ''}`}
+          draggable
+          onDragStart={() => onNodeDragStart(node.id)}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            onNodeDragEnter(node.id);
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            onNodeDrop(node.id);
+          }}
+          onDragEnd={onNodeDragEnd}
+        >
 
           {/* Header Row: Title, Checkbox, Actions */}
           <div className="mm-header">
@@ -262,6 +319,12 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
               deleteNode={deleteNode}
               updateNodeFields={updateNodeFields}
               toggleDayAssignment={toggleDayAssignment}
+              draggedNodeId={draggedNodeId}
+              dragOverNodeId={dragOverNodeId}
+              onNodeDragStart={onNodeDragStart}
+              onNodeDragEnter={onNodeDragEnter}
+              onNodeDrop={onNodeDrop}
+              onNodeDragEnd={onNodeDragEnd}
             />
           ))}
 

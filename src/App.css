@@ -928,6 +928,20 @@
   position: relative;
   z-index: 2;
   transition: all 0.2s ease;
+  cursor: grab;
+}
+
+.mindmap-node-card:active {
+  cursor: grabbing;
+}
+
+.mindmap-node-card.drag-over {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.mindmap-node-card.dragging {
+  opacity: 0.55;
 }
 
 .mindmap-node-card.completed {

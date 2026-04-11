@@ -51,6 +51,73 @@ function App() {
     });
   };
 
+  const findNodeById = (nodes, targetId) => {
+    for (const node of nodes) {
+      if (node.id === targetId) return node;
+      if (node.children?.length) {
+        const found = findNodeById(node.children, targetId);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const containsNodeId = (node, targetId) => {
+    if (!node?.children?.length) return false;
+    for (const child of node.children) {
+      if (child.id === targetId || containsNodeId(child, targetId)) return true;
+    }
+    return false;
+  };
+
+  const removeNodeById = (nodes, targetId) => {
+    let removedNode = null;
+
+    const walk = (arr) => {
+      const next = [];
+      for (const item of arr) {
+        if (item.id === targetId) {
+          removedNode = item;
+          continue;
+        }
+        const nextChildren = item.children?.length ? walk(item.children) : item.children || [];
+        next.push({ ...item, children: nextChildren });
+      }
+      return next;
+    };
+
+    return { nextNodes: walk(nodes), removedNode };
+  };
+
+  const rebalanceDepth = (node, depth) => {
+    return {
+      ...node,
+      depth,
+      children: (node.children || []).map(child => rebalanceDepth(child, depth + 1)),
+    };
+  };
+
+  const insertAfterTarget = (nodes, targetId, insertNode) => {
+    let inserted = false;
+
+    const walk = (arr) => {
+      const next = [];
+      for (const item of arr) {
+        const nextChildren = item.children?.length ? walk(item.children) : item.children || [];
+        const nextItem = { ...item, children: nextChildren };
+        next.push(nextItem);
+        if (item.id === targetId) {
+          next.push(insertNode);
+          inserted = true;
+        }
+      }
+      return next;
+    };
+
+    const nextNodes = walk(nodes);
+    return inserted ? nextNodes : nodes;
+  };
+
   // Node Actions
   const addRootProject = (title) => {
     const newNode = {
@@ -95,6 +162,24 @@ function App() {
         : [...days, dayIndex];
       return { ...node, assignedDays: newDays };
     }));
+  };
+
+  const moveNode = (draggedId, targetId) => {
+    if (!draggedId || !targetId || draggedId === targetId) return;
+
+    setTreeNodes(prev => {
+      const draggedNode = findNodeById(prev, draggedId);
+      const targetNode = findNodeById(prev, targetId);
+
+      if (!draggedNode || !targetNode) return prev;
+      if (containsNodeId(draggedNode, targetId)) return prev;
+
+      const { nextNodes, removedNode } = removeNodeById(prev, draggedId);
+      if (!removedNode) return prev;
+
+      const movedNode = rebalanceDepth(removedNode, targetNode.depth);
+      return insertAfterTarget(nextNodes, targetId, movedNode);
+    });
   };
 
   return (
@@ -144,6 +229,7 @@ function App() {
             deleteNode={deleteNode}
             updateNodeFields={updateNodeFields}
             toggleDayAssignment={toggleDayAssignment}
+            moveNode={moveNode}
           />
 
           {/* 2. 실행 영역: Daily View & Memos */}
