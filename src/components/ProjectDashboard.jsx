@@ -82,9 +82,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
   const [newChildTitle, setNewChildTitle] = useState('');
   const [showMemo, setShowMemo] = useState(false);
 
-  const handleAddChild = (e) => {
-    e.preventDefault();
-    
+  const submitAddChild = () => {
     if (newChildTitle.trim()) {
       addChildNode(node.id, node.depth, newChildTitle.trim());
       setNewChildTitle('');
@@ -92,6 +90,13 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
       // Do not setIsAdding(false) so the user can continuously add multiple children
     } else {
       setIsAdding(false);
+    }
+  };
+
+  const handleAddChildKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === 'NumpadEnter') {
+      e.preventDefault();
+      submitAddChild();
     }
   };
 
@@ -245,7 +250,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
             <div className="mindmap-group">
               <div className="mindmap-node-anchor">
                 <div className="mindmap-node-card" style={{ padding: '0.6rem 1rem', minWidth: '200px' }}>
-                  <form onSubmit={handleAddChild} style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
                     <input 
                       autoFocus
                       type="text" 
@@ -253,10 +258,12 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
                       placeholder={getPlaceholder()}
                       value={newChildTitle}
                       onChange={(e) => setNewChildTitle(e.target.value)}
+                      onKeyDown={handleAddChildKeyDown}
                       style={{ flex: 1, padding: '0.4rem', border: 'none', borderBottom: '1px solid var(--primary)', background: 'transparent', color: 'var(--text-main)', outline: 'none' }}
                     />
                     <button 
-                      type="submit"
+                      type="button"
+                      onClick={submitAddChild}
                       className="save-child-btn mini-btn"
                       style={{ padding: '0.3rem 0.6rem' }}
                     >
@@ -270,7 +277,7 @@ function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayA
                     >
                       X
                     </button>
-                  </form>
+                  </div>
                 </div>
               </div>
             </div>
