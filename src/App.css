@@ -1064,16 +1064,33 @@
   position: relative;
 }
 
-/* Vertical Spine */
-.mindmap-children-col::before {
+/* Vertical connector segments are anchored to each child card row
+   so deeper descendant height does not make lines protrude. */
+.mindmap-children-col > .mindmap-group > .mindmap-node-anchor {
+  position: relative;
+}
+
+.mindmap-children-col > .mindmap-group > .mindmap-node-anchor::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 2rem;
-  bottom: 2rem;
+  left: -2rem;
+  top: -0.75rem;
+  bottom: -0.75rem;
   width: 3px;
   background: var(--primary-light);
   border-radius: 2px;
+}
+
+.mindmap-children-col > .mindmap-group:first-child > .mindmap-node-anchor::before {
+  top: 50%;
+}
+
+.mindmap-children-col > .mindmap-group:last-child > .mindmap-node-anchor::before {
+  bottom: 50%;
+}
+
+.mindmap-children-col > .mindmap-group:only-child > .mindmap-node-anchor::before {
+  display: none;
 }
 
 /* Horizontal line OUT of the parent */
