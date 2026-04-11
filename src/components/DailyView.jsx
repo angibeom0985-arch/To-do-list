@@ -1,15 +1,35 @@
 import React from 'react';
 
-export default function DailyView({ activeDay, projects, toggleTask, assignTaskDay }) {
-  // Get all tasks across all projects assigned to activeDay
+const COLOR_PALETTE = {
+  default: { main: '#8b5cf6', light: 'rgba(139, 92, 246, 0.2)' },
+  blue: { main: '#3b82f6', light: 'rgba(59, 130, 246, 0.2)' },
+  green: { main: '#10b981', light: 'rgba(16, 185, 129, 0.2)' },
+  amber: { main: '#f59e0b', light: 'rgba(245, 158, 11, 0.2)' },
+  rose: { main: '#f43f5e', light: 'rgba(244, 63, 94, 0.2)' }
+};
+
+export default function DailyView({ activeDay, treeNodes, updateNodeFields, toggleDayAssignment }) {
+  // Flatten tree to find depth-4 tasks where assignedDays includes activeDay
   const dailyTasks = [];
-  projects.forEach(project => {
-    project.tasks.forEach(task => {
-      if (task.assignedDay === activeDay) {
-        dailyTasks.push({ ...task, projectName: project.title, projectId: project.id, projectColor: project.color || 'default' });
+
+  const traverse = (node, pathStack, color) => {
+    const currentPath = [...pathStack, node.title];
+    const currentColor = node.depth === 1 ? (node.color || 'default') : color;
+
+    if (node.depth === 4) {
+      if ((node.assignedDays || []).includes(activeDay)) {
+        dailyTasks.push({
+          ...node,
+          path: pathStack.join(' > '), // Extracting parents
+          projectColor: currentColor
+        });
       }
-    });
-  });
+    } else if (node.children) {
+      node.children.forEach(child => traverse(child, currentPath, currentColor));
+    }
+  };
+
+  treeNodes.forEach(rootNode => traverse(rootNode, [], 'default'));
 
   // Calculate completion
   const total = dailyTasks.length;
@@ -21,7 +41,7 @@ export default function DailyView({ activeDay, projects, toggleTask, assignTaskD
       <div className="daily-header">
         <div style={{ flex: 1 }}>
           <h2 style={{ fontSize: '1.4rem', margin: '0 0 0.5rem' }}>오늘의 스케줄 실행 🚀</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>각 기획에서 넘어온 오늘의 업무들을 완수하세요.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>4단계 기획 보드에서 이 요일로 복사된 세부 임무들입니다.</p>
         </div>
         
         <div className="daily-progress-wrap">
@@ -36,27 +56,21 @@ export default function DailyView({ activeDay, projects, toggleTask, assignTaskD
       <ul className="daily-task-list">
         {dailyTasks.length === 0 ? (
           <p className="empty-projects" style={{ textAlign: 'center', padding: '2rem' }}>
-            이 요일에 배정된 업무가 없습니다. 기획 보드에서 일정을 배정해 보세요!
+            이 요일에 복사된 업무가 없습니다. 기획 보드에서 멀티 요일 스위치를 켜보세요!
           </p>
         ) : (
-          dailyTasks.map(task => (
-            <li key={task.id} className={`daily-task-item ${task.completed ? 'completed' : ''}`}>
-              <label className="task-checkbox-wrapper">
-                <input type="checkbox" checked={task.completed} onChange={() => toggleTask(task.projectId, task.id)} />
-                <span className="task-checkbox-custom"></span>
-              </label>
+          dailyTasks.map(task => {
+            const colorConfig = COLOR_PALETTE[task.projectColor] || COLOR_PALETTE.default;
 
-              <div className="daily-task-content">
-                {(() => {
-                  const COLOR_PALETTE = {
-                    default: { main: '#8b5cf6', light: 'rgba(139, 92, 246, 0.2)' },
-                    blue: { main: '#3b82f6', light: 'rgba(59, 130, 246, 0.2)' },
-                    green: { main: '#10b981', light: 'rgba(16, 185, 129, 0.2)' },
-                    amber: { main: '#f59e0b', light: 'rgba(245, 158, 11, 0.2)' },
-                    rose: { main: '#f43f5e', light: 'rgba(244, 63, 94, 0.2)' }
-                  };
-                  const colorConfig = COLOR_PALETTE[task.projectColor] || COLOR_PALETTE.default;
-                  return (
+            return (
+              <li key={task.id} className={`daily-task-item ${task.completed ? 'completed' : ''}`}>
+                <label className="task-checkbox-wrapper">
+                  <input type="checkbox" checked={task.completed} onChange={() => updateNodeFields(task.id, { completed: !task.completed })} />
+                  <span className="task-checkbox-custom"></span>
+                </label>
+
+                <div className="daily-task-content" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span 
                       className="daily-project-badge" 
                       style={{ 
@@ -64,28 +78,29 @@ export default function DailyView({ activeDay, projects, toggleTask, assignTaskD
                         color: colorConfig.main, 
                         borderColor: colorConfig.light 
                       }}
+                      title={task.path}
                     >
-                      {task.projectName}
+                      {task.path}
                     </span>
-                  );
-                })()}
-                {task.priority && task.priority !== 'normal' && (
-                  <span className={`priority-badge ${task.priority}`}>
-                    {task.priority === 'urgent' && '⏰ 급한 일'}
-                    {task.priority === 'important' && '💰 중요한 일'}
-                    {task.priority === 'both' && '🔥 급하고 중요'}
-                  </span>
-                )}
-                <span className="task-text">{task.text}</span>
-              </div>
+                    {task.priority && task.priority !== 'normal' && (
+                      <span className={`priority-badge ${task.priority}`}>
+                        {task.priority === 'urgent' && '⏰ 급한 일'}
+                        {task.priority === 'important' && '💰 중요한 일'}
+                        {task.priority === 'both' && '🔥 급하고 중요'}
+                      </span>
+                    )}
+                  </div>
+                  <span className="task-text">{task.title}</span>
+                </div>
 
-              <div className="daily-task-actions">
-                <button onClick={() => assignTaskDay(task.projectId, task.id, null)} className="unassign-btn" title="요일 배정 취소(기획으로 돌려보내기)">
-                  배정 취소
-                </button>
-              </div>
-            </li>
-          ))
+                <div className="daily-task-actions">
+                  <button onClick={() => toggleDayAssignment(task.id, activeDay)} className="unassign-btn" title="이 요일에서만 제거 (다른 요일은 유지됨)">
+                    배정 취소
+                  </button>
+                </div>
+              </li>
+            );
+          })
         )}
       </ul>
     </div>

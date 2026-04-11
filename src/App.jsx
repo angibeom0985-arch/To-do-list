@@ -9,7 +9,7 @@ const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 const weekOrder = [1, 2, 3, 4, 5, 6, 0];
 
 function App() {
-  const [projects, setProjects] = useLocalStorage('projects-v1', []);
+  const [treeNodes, setTreeNodes] = useLocalStorage('projects-v2', []);
   const [globalMemos, setGlobalMemos] = useLocalStorage('global-memos-list', []);
   const [activeDay, setActiveDay] = useState(new Date().getDay()); // 0-6, or 'memo'
   const [theme, setTheme] = useLocalStorage('app-theme', 'dark');
@@ -22,92 +22,77 @@ function App() {
     }
   }, [theme]);
 
-  // Project Actions
-  const addProject = (title) => {
-    const newProject = {
+  // Tree Helper Functions
+  const mapNodes = (nodes, targetId, updateFn) => {
+    return nodes.map(node => {
+      if (node.id === targetId) return updateFn(node);
+      if (node.children) return { ...node, children: mapNodes(node.children, targetId, updateFn) };
+      return node;
+    });
+  };
+
+  const filterNodes = (nodes, targetId) => {
+    return nodes
+      .filter(node => node.id !== targetId)
+      .map(node => ({ ...node, children: node.children ? filterNodes(node.children, targetId) : [] }));
+  };
+
+  const _addChild = (nodes, parentId, newNode) => {
+    return nodes.map(node => {
+      if (node.id === parentId) {
+        return { ...node, children: [...(node.children || []), newNode], isExpanded: true };
+      }
+      if (node.children) {
+        return { ...node, children: _addChild(node.children, parentId, newNode) };
+      }
+      return node;
+    });
+  };
+
+  // Node Actions
+  const addRootProject = (title) => {
+    const newNode = {
       id: crypto.randomUUID(),
       title,
-      tasks: [],
+      depth: 1,
+      color: 'default',
+      isExpanded: true,
+      children: [],
       createdAt: new Date().toISOString()
     };
-    setProjects(prev => [newProject, ...prev]);
+    setTreeNodes(prev => [...prev, newNode]);
   };
 
-  const deleteProject = (projectId) => {
-    setProjects(prev => prev.filter(p => p.id !== projectId));
+  const addChildNode = (parentId, parentDepth, title) => {
+    const newNode = {
+      id: crypto.randomUUID(),
+      title,
+      depth: parentDepth + 1,
+      isExpanded: true,
+      children: [],
+      // For depth 4 (subplan) we need specific props
+      ...(parentDepth + 1 === 4 ? { completed: false, priority: 'normal', assignedDays: [] } : {}),
+      createdAt: new Date().toISOString()
+    };
+    setTreeNodes(prev => _addChild(prev, parentId, newNode));
   };
 
-  const addTaskToProject = (projectId, taskPayload) => {
-    setProjects(prev => prev.map(p => {
-      if (p.id === projectId) {
-        return {
-          ...p,
-          tasks: [
-            {
-              id: crypto.randomUUID(),
-              ...taskPayload,
-              completed: false,
-              createdAt: new Date().toISOString()
-            },
-            ...p.tasks
-          ]
-        };
-      }
-      return p;
+  const deleteNode = (nodeId) => {
+    setTreeNodes(prev => filterNodes(prev, nodeId));
+  };
+
+  const updateNodeFields = (nodeId, fieldsObj) => {
+    setTreeNodes(prev => mapNodes(prev, nodeId, node => ({ ...node, ...fieldsObj })));
+  };
+
+  const toggleDayAssignment = (nodeId, dayIndex) => {
+    setTreeNodes(prev => mapNodes(prev, nodeId, node => {
+      const days = node.assignedDays || [];
+      const newDays = days.includes(dayIndex) 
+        ? days.filter(d => d !== dayIndex) 
+        : [...days, dayIndex];
+      return { ...node, assignedDays: newDays };
     }));
-  };
-
-  const toggleTask = (projectId, taskId) => {
-    setProjects(prev => prev.map(p => {
-      if (p.id === projectId) {
-        return {
-          ...p,
-          tasks: p.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t)
-        };
-      }
-      return p;
-    }));
-  };
-
-  const deleteTask = (projectId, taskId) => {
-    setProjects(prev => prev.map(p => {
-      if (p.id === projectId) {
-        return {
-          ...p,
-          tasks: p.tasks.filter(t => t.id !== taskId)
-        };
-      }
-      return p;
-    }));
-  };
-
-  const assignTaskDay = (projectId, taskId, dayIndex) => {
-    setProjects(prev => prev.map(p => {
-      if (p.id === projectId) {
-        return {
-          ...p,
-          tasks: p.tasks.map(t => t.id === taskId ? { ...t, assignedDay: dayIndex } : t)
-        };
-      }
-      return p;
-    }));
-  };
-
-  const reorderProjectTasks = (projectId, sourceIndex, destIndex) => {
-    if (sourceIndex === destIndex) return;
-    setProjects(prev => prev.map(p => {
-      if (p.id === projectId) {
-        const newTasks = [...p.tasks];
-        const [dragged] = newTasks.splice(sourceIndex, 1);
-        newTasks.splice(destIndex, 0, dragged);
-        return { ...p, tasks: newTasks };
-      }
-      return p;
-    }));
-  };
-
-  const updateProjectColor = (projectId, colorCode) => {
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, color: colorCode } : p));
   };
 
   return (
@@ -123,20 +108,17 @@ function App() {
         <h1 style={{ fontSize: '2.5rem', background: '-webkit-linear-gradient(45deg, var(--primary), #d8b4fe)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0 }}>
           목표 지향 스케줄러.
         </h1>
-        <p>프로젝트 기획부터 요일별 실행까지 한 곳에서 끝내세요.</p>
+        <p>4단계 아웃라이너로 세밀하게 기획하고 요일별로 실천하세요.</p>
       </header>
       
-      {/* 1. 기획 영역: Project Dashboard */}
+      {/* 1. 기획 영역: 4-Depth Outliner Dashboard */}
       <ProjectDashboard 
-        projects={projects}
-        addProject={addProject}
-        deleteProject={deleteProject}
-        addTaskToProject={addTaskToProject}
-        toggleTask={toggleTask}
-        deleteTask={deleteTask}
-        assignTaskDay={assignTaskDay}
-        reorderProjectTasks={reorderProjectTasks}
-        updateProjectColor={updateProjectColor}
+        treeNodes={treeNodes}
+        addRootProject={addRootProject}
+        addChildNode={addChildNode}
+        deleteNode={deleteNode}
+        updateNodeFields={updateNodeFields}
+        toggleDayAssignment={toggleDayAssignment}
       />
 
       {/* 2. 실행 영역: Daily View & Memos */}
@@ -164,9 +146,9 @@ function App() {
         ) : (
           <DailyView 
             activeDay={activeDay} 
-            projects={projects} 
-            toggleTask={toggleTask}
-            assignTaskDay={assignTaskDay}
+            treeNodes={treeNodes} 
+            updateNodeFields={updateNodeFields}
+            toggleDayAssignment={toggleDayAssignment}
           />
         )}
       </div>

@@ -1,71 +1,5 @@
 import React, { useState } from 'react';
 
-// 간단한 원형 프로그레스 바 컴포넌트
-function ProjectProgress({ tasks }) {
-  const total = tasks.length;
-  const completed = tasks.filter(t => t.completed).length;
-  const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
-
-  return (
-    <div className="project-progress">
-      <div className="mini-ring">
-        <div className="mini-ring-fill" style={{ '--angle': `${percentage * 3.6}deg` }}></div>
-      </div>
-      <span className="project-pct">{percentage}%</span>
-    </div>
-  );
-}
-
-  export default function ProjectDashboard({ projects, addProject, deleteProject, addTaskToProject, toggleTask, deleteTask, assignTaskDay, reorderProjectTasks, updateProjectColor }) {
-  const [newProjectTitle, setNewProjectTitle] = useState('');
-
-  const handleAddProject = (e) => {
-    e.preventDefault();
-    if (newProjectTitle.trim()) {
-      addProject(newProjectTitle.trim());
-      setNewProjectTitle('');
-    }
-  };
-
-  return (
-    <div className="project-dashboard glass-panel">
-      <div className="dashboard-header">
-        <h2>📁 나의 프로젝트 보드</h2>
-        <form onSubmit={handleAddProject} className="project-add-form">
-          <input 
-            type="text" 
-            placeholder="새 프로젝트 이름..." 
-            value={newProjectTitle}
-            onChange={(e) => setNewProjectTitle(e.target.value)}
-            className="project-input"
-          />
-          <button type="submit" className="add-btn mini-btn">+</button>
-        </form>
-      </div>
-
-      <div className="projects-grid">
-        {projects.length === 0 ? (
-          <p className="empty-projects">기획된 프로젝트가 없습니다. 위의 칸에 가장 멋진 목표를 적어보세요!</p>
-        ) : (
-          projects.map(project => (
-            <ProjectCard 
-              key={project.id} 
-              project={project} 
-              deleteProject={deleteProject}
-              addTaskToProject={addTaskToProject}
-              toggleTask={toggleTask}
-              deleteTask={deleteTask}
-              assignTaskDay={assignTaskDay}
-              reorderProjectTasks={reorderProjectTasks}
-              updateProjectColor={updateProjectColor}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
 const COLOR_PALETTE = {
   default: { main: '#8b5cf6', light: 'rgba(139, 92, 246, 0.2)' },
   blue: { main: '#3b82f6', light: 'rgba(59, 130, 246, 0.2)' },
@@ -74,101 +8,219 @@ const COLOR_PALETTE = {
   rose: { main: '#f43f5e', light: 'rgba(244, 63, 94, 0.2)' }
 };
 
-function ProjectCard({ project, deleteProject, addTaskToProject, toggleTask, deleteTask, assignTaskDay, reorderProjectTasks, updateProjectColor }) {
-  const [taskText, setTaskText] = useState('');
-  const [taskPriority, setTaskPriority] = useState('normal');
+const DAY_LETTERS = ['일', '월', '화', '수', '목', '금', '토'];
 
-  const handleAddTask = (e) => {
+// Recursively calculates completion based on depth-4 children
+const calculateProgress = (node) => {
+  let leaves = 0;
+  let completed = 0;
+
+  const traverse = (n) => {
+    if (n.depth === 4) {
+      leaves++;
+      if (n.completed) completed++;
+    } else if (n.children && n.children.length > 0) {
+      n.children.forEach(traverse);
+    }
+  };
+  traverse(node);
+
+  if (leaves === 0) return 0;
+  return Math.round((completed / leaves) * 100);
+};
+
+export default function ProjectDashboard({ treeNodes, addRootProject, addChildNode, deleteNode, updateNodeFields, toggleDayAssignment }) {
+  const [newProjectTitle, setNewProjectTitle] = useState('');
+
+  const handleAddRoot = (e) => {
     e.preventDefault();
-    if (taskText.trim()) {
-      addTaskToProject(project.id, { text: taskText.trim(), priority: taskPriority, assignedDay: null });
-      setTaskText('');
-      setTaskPriority('normal');
+    if (newProjectTitle.trim()) {
+      addRootProject(newProjectTitle.trim());
+      setNewProjectTitle('');
     }
   };
 
-  const projectColor = project.color || 'default';
-  const customStyles = {
-    '--primary': COLOR_PALETTE[projectColor].main,
-    '--primary-light': COLOR_PALETTE[projectColor].light
+  return (
+    <div className="project-dashboard glass-panel">
+      <div className="dashboard-header">
+        <h2>📁 프로젝트 아웃라이너</h2>
+        <form onSubmit={handleAddRoot} className="project-add-form">
+          <input 
+            type="text" 
+            placeholder="상위 프로젝트 생성..." 
+            value={newProjectTitle}
+            onChange={(e) => setNewProjectTitle(e.target.value)}
+            className="project-input"
+          />
+          <button type="submit" className="add-btn mini-btn">+</button>
+        </form>
+      </div>
+
+      <div className="tree-container">
+        {treeNodes.length === 0 ? (
+          <p className="empty-projects">기획된 프로젝트가 없습니다. 4단계 아웃라이너로 체계적으로 기획해보세요!</p>
+        ) : (
+          treeNodes.map(node => (
+            <TreeItem 
+              key={node.id} 
+              node={node} 
+              addChildNode={addChildNode}
+              deleteNode={deleteNode}
+              updateNodeFields={updateNodeFields}
+              toggleDayAssignment={toggleDayAssignment}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TreeItem({ node, addChildNode, deleteNode, updateNodeFields, toggleDayAssignment }) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [newChildTitle, setNewChildTitle] = useState('');
+
+  const handleAddChild = (e) => {
+    if (e.key === 'Enter' && newChildTitle.trim()) {
+      e.preventDefault();
+      addChildNode(node.id, node.depth, newChildTitle.trim());
+      setNewChildTitle('');
+      setIsAdding(false);
+      updateNodeFields(node.id, { isExpanded: true });
+    }
   };
 
+  const getPlaceholder = () => {
+    if (node.depth === 1) return '세부 프로젝트 추가... (Enter)';
+    if (node.depth === 2) return '계획 추가... (Enter)';
+    if (node.depth === 3) return '세부 계획 추가... (Enter)';
+    return '';
+  };
+
+  const isLeaf = node.depth === 4;
+  const projectColor = node.color || 'default';
+  const customStyles = node.depth === 1 ? {
+    '--primary': COLOR_PALETTE[projectColor].main,
+    '--primary-light': COLOR_PALETTE[projectColor].light
+  } : {};
+
   return (
-    <div className="project-card" style={customStyles}>
-      <div className="project-card-header">
-        <div className="project-title-area">
-          <h3 className="project-card-title">{project.title}</h3>
-          <ProjectProgress tasks={project.tasks} />
-        </div>
+    <div className={`tree-item depth-${node.depth}`} style={customStyles}>
+      <div className={`tree-item-content ${isLeaf && node.completed ? 'completed' : ''}`}>
         
-        <div style={{ display: 'flex', gap: '0.4rem', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <button onClick={() => deleteProject(project.id)} className="delete-btn">×</button>
-          <div className="color-picker" style={{ display: 'flex', gap: '0.3rem', marginTop: '0.5rem' }}>
-            {Object.keys(COLOR_PALETTE).map(c => (
-              <div 
-                key={c}
-                onClick={() => updateProjectColor(project.id, c)}
-                style={{ 
-                  width: '14px', height: '14px', borderRadius: '50%', cursor: 'pointer', 
-                  backgroundColor: COLOR_PALETTE[c].main,
-                  border: projectColor === c ? '2px solid white' : '2px solid transparent'
-                }}
-                title={`${c} 색상으로 변경`}
+        {/* Expand / Collapse arrow */}
+        {!isLeaf ? (
+          <button 
+            className={`expand-btn ${node.isExpanded ? 'expanded' : ''}`}
+            onClick={() => updateNodeFields(node.id, { isExpanded: !node.isExpanded })}
+          >
+            ▶
+          </button>
+        ) : (
+          <label className="task-checkbox-wrapper mini-box leaf-checkbox">
+            <input type="checkbox" checked={node.completed} onChange={() => updateNodeFields(node.id, { completed: !node.completed })} />
+            <span className="task-checkbox-custom mini-box"></span>
+          </label>
+        )}
+
+        {/* Title */}
+        <span className="tree-title">{node.title}</span>
+
+        {/* Depth 1 Specifics */}
+        {node.depth === 1 && (
+          <div className="tree-depth1-extras">
+            <div className="color-picker-mini">
+              {Object.keys(COLOR_PALETTE).map(c => (
+                <div 
+                  key={c}
+                  onClick={() => updateNodeFields(node.id, { color: c })}
+                  style={{ backgroundColor: COLOR_PALETTE[c].main }}
+                  className={`color-dot ${projectColor === c ? 'active' : ''}`}
+                  title={c}
+                />
+              ))}
+            </div>
+            <div className="mini-ring">
+              <div className="mini-ring-fill" style={{ '--angle': `${calculateProgress(node) * 3.6}deg` }}></div>
+            </div>
+            <span className="project-pct">{calculateProgress(node)}%</span>
+          </div>
+        )}
+
+        {/* Depth 4 Contexts */}
+        {isLeaf && (
+          <div className="leaf-assignments">
+            <select 
+              value={node.priority || 'normal'} 
+              onChange={(e) => updateNodeFields(node.id, { priority: e.target.value })}
+              className="mini-select"
+            >
+              <option value="normal">일반</option>
+              <option value="urgent">⏰ 급함</option>
+              <option value="important">💰 중요</option>
+              <option value="both">🔥 집중</option>
+            </select>
+            
+            <div className="day-toggles">
+              {[1, 2, 3, 4, 5, 6, 0].map(d => {
+                const isActive = (node.assignedDays || []).includes(d);
+                return (
+                  <button 
+                    key={d}
+                    className={`day-pill ${isActive ? 'active' : ''}`}
+                    onClick={() => toggleDayAssignment(node.id, d)}
+                    title={`${DAY_LETTERS[d]}요일에 복사 배정`}
+                  >
+                    {DAY_LETTERS[d]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="tree-actions">
+          {!isLeaf && (
+            <button className="add-child-btn" onClick={() => setIsAdding(!isAdding)}>+</button>
+          )}
+          <button className="delete-node-btn" onClick={() => deleteNode(node.id)}>×</button>
+        </div>
+      </div>
+
+      {isAdding && (
+        <div className="tree-add-drawer">
+          <span className="tree-indent-line"></span>
+          <input 
+            autoFocus
+            type="text" 
+            className="tree-add-input" 
+            placeholder={getPlaceholder()}
+            value={newChildTitle}
+            onChange={(e) => setNewChildTitle(e.target.value)}
+            onKeyDown={handleAddChild}
+            onBlur={() => setIsAdding(false)}
+          />
+        </div>
+      )}
+
+      {/* Children */}
+      {node.children && node.children.length > 0 && node.isExpanded && (
+        <div className="tree-children">
+          <div className="tree-indent-line"></div>
+          <div className="tree-children-list">
+            {node.children.map(child => (
+              <TreeItem 
+                key={child.id} 
+                node={child} 
+                addChildNode={addChildNode}
+                deleteNode={deleteNode}
+                updateNodeFields={updateNodeFields}
+                toggleDayAssignment={toggleDayAssignment}
               />
             ))}
           </div>
         </div>
-      </div>
-      
-      <form onSubmit={handleAddTask} className="project-task-form">
-        <select value={taskPriority} onChange={(e) => setTaskPriority(e.target.value)} className="mini-select">
-          <option value="normal">일반</option>
-          <option value="urgent">⏰ 급함</option>
-          <option value="important">💰 중요</option>
-          <option value="both">🔥 집중</option>
-        </select>
-        <input 
-          type="text" 
-          placeholder="세부 과정 추가..." 
-          value={taskText}
-          onChange={(e) => setTaskText(e.target.value)}
-          className="mini-task-input"
-        />
-        <button type="submit" className="add-btn mini-btn ">→</button>
-      </form>
-
-      <ul className="project-task-list">
-        {project.tasks.map(task => (
-          <li key={task.id} className={`project-task-item ${task.completed ? 'completed' : ''}`}>
-            <label className="task-checkbox-wrapper mini-box">
-              <input type="checkbox" checked={task.completed} onChange={() => toggleTask(project.id, task.id)} />
-              <span className="task-checkbox-custom mini-box"></span>
-            </label>
-            
-            <span className="task-text-content">
-              {task.text}
-            </span>
-
-            <div className="task-actions">
-              <select 
-                value={task.assignedDay === null ? '' : task.assignedDay} 
-                onChange={(e) => assignTaskDay(project.id, task.id, e.target.value === '' ? null : Number(e.target.value))}
-                className="day-assign-select"
-              >
-                <option value="">상시 대기</option>
-                <option value="1">월요일 배정</option>
-                <option value="2">화요일 배정</option>
-                <option value="3">수요일 배정</option>
-                <option value="4">목요일 배정</option>
-                <option value="5">금요일 배정</option>
-                <option value="6">토요일 배정</option>
-                <option value="0">일요일 배정</option>
-              </select>
-              <button onClick={() => deleteTask(project.id, task.id)} className="delete-btn mini">×</button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      )}
     </div>
   );
 }
