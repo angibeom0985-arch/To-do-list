@@ -1,5 +1,3 @@
-﻿import { Redis } from '@upstash/redis';
-
 const MIN_KEY_LENGTH = 4;
 const MAX_KEY_LENGTH = 80;
 
@@ -26,34 +24,65 @@ function readBody(req) {
   return req.body;
 }
 
-function assertRedisReady(res) {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+function getUpstashConfig(res) {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
     res.status(500).json({
-      error: 'Upstash Redis가 연결되지 않았습니다. Vercel 프로젝트 Integrations에서 Redis를 추가해주세요.',
+      error: 'Upstash Redis 환경변수(UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN)가 필요합니다.',
     });
-    return false;
+    return null;
   }
 
-  return true;
+  return { url: url.replace(/\/$/, ''), token };
 }
 
-function getRedisClient() {
-  return new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+async function upstashGet(config, redisKey) {
+  const endpoint = `${config.url}/GET/${encodeURIComponent(redisKey)}`;
+  const response = await fetch(endpoint, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${config.token}`,
+    },
   });
+
+  if (!response.ok) {
+    throw new Error(`Upstash GET failed: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  if (payload?.error) {
+    throw new Error(`Upstash GET error: ${payload.error}`);
+  }
+
+  return payload?.result ?? null;
+}
+
+async function upstashSet(config, redisKey, value) {
+  const endpoint = `${config.url}/SET/${encodeURIComponent(redisKey)}`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(value),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Upstash SET failed: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  if (payload?.error) {
+    throw new Error(`Upstash SET error: ${payload.error}`);
+  }
 }
 
 export default async function handler(req, res) {
-  if (!assertRedisReady(res)) return;
-  let redis;
-  try {
-    redis = getRedisClient();
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Redis 클라이언트 초기화에 실패했습니다.' });
-    return;
-  }
+  const config = getUpstashConfig(res);
+  if (!config) return;
 
   if (req.method === 'GET') {
     const syncKey = normalizeKey(req.query?.key);
@@ -63,7 +92,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      const data = await redis.get(toStorageKey(syncKey));
+      const data = await upstashGet(config, toStorageKey(syncKey));
       res.status(200).json({ data: data || null });
     } catch (error) {
       console.error(error);
@@ -91,7 +120,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      await redis.set(toStorageKey(syncKey), body.data);
+      await upstashSet(config, toStorageKey(syncKey), body.data);
       res.status(200).json({ ok: true });
     } catch (error) {
       console.error(error);
