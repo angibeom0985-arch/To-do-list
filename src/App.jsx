@@ -12,6 +12,18 @@ const dayNames = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\
 const weekOrder = [1, 2, 3, 4, 5, 6, 0];
 const AUTO_SYNC_KEY = 'to-do-list-owner-default';
 const CLOUD_POLL_INTERVAL_MS = 20000;
+const UI_SCALE_STORAGE_KEY = 'ui-scale';
+const MIN_UI_SCALE = 0.6;
+const MAX_UI_SCALE = 2.2;
+const PINCH_SENSITIVITY = 0.75;
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const getTouchDistance = (touches) => {
+  const [firstTouch, secondTouch] = touches;
+  return Math.hypot(secondTouch.clientX - firstTouch.clientX, secondTouch.clientY - firstTouch.clientY);
+};
+
 const toTimestamp = (value) => {
   const parsed = Date.parse(value || '');
   return Number.isNaN(parsed) ? 0 : parsed;
@@ -30,6 +42,10 @@ function App() {
   const hasPendingLocalChangesRef = useRef(false);
   const latestCloudSavedAtRef = useRef('');
   const saveTimerRef = useRef(null);
+  const pinchStartDistanceRef = useRef(null);
+  const pinchStartScaleRef = useRef(1);
+  const [uiScale, setUiScale] = useLocalStorage(UI_SCALE_STORAGE_KEY, 1);
+  const uiScaleRef = useRef(1);
   const workflowNodeId = new URLSearchParams(window.location.search).get('workflowNode');
 
   const applyCloudSnapshot = useCallback((cloudData) => {
@@ -54,6 +70,65 @@ function App() {
       document.body.classList.remove('light-mode');
     }
   }, [theme]);
+
+  useEffect(() => {
+    if (!Number.isFinite(uiScale)) {
+      setUiScale(1);
+      return;
+    }
+
+    const boundedScale = clamp(uiScale, MIN_UI_SCALE, MAX_UI_SCALE);
+    if (boundedScale !== uiScale) {
+      setUiScale(boundedScale);
+    }
+  }, [uiScale, setUiScale]);
+
+  useEffect(() => {
+    uiScaleRef.current = uiScale;
+  }, [uiScale]);
+
+  useEffect(() => {
+    const handleTouchStart = (event) => {
+      if (event.touches.length !== 2) return;
+      pinchStartDistanceRef.current = getTouchDistance(event.touches);
+      pinchStartScaleRef.current = uiScaleRef.current;
+    };
+
+    const handleTouchMove = (event) => {
+      if (event.touches.length !== 2 || pinchStartDistanceRef.current === null) return;
+
+      event.preventDefault();
+      const currentDistance = getTouchDistance(event.touches);
+      const scaleFactor = currentDistance / pinchStartDistanceRef.current;
+      const adjustedScaleFactor = scaleFactor ** PINCH_SENSITIVITY;
+      const nextScale = clamp(pinchStartScaleRef.current * adjustedScaleFactor, MIN_UI_SCALE, MAX_UI_SCALE);
+      setUiScale(nextScale);
+    };
+
+    const handleTouchEnd = (event) => {
+      if (event.touches.length >= 2) return;
+      pinchStartDistanceRef.current = null;
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+    // iOS Safari: block native gesture zoom so custom pinch scale remains authoritative.
+    const preventNativeGestureZoom = (event) => event.preventDefault();
+    document.addEventListener('gesturestart', preventNativeGestureZoom, { passive: false });
+    document.addEventListener('gesturechange', preventNativeGestureZoom, { passive: false });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchEnd);
+      document.removeEventListener('gesturestart', preventNativeGestureZoom);
+      document.removeEventListener('gesturechange', preventNativeGestureZoom);
+    };
+  }, []);
 
   useEffect(() => {
     const trimmedKey = AUTO_SYNC_KEY;
@@ -379,100 +454,104 @@ function App() {
   if (workflowNodeId) {
     const targetNode = findNodeById(treeNodes, workflowNodeId);
     return (
-      <div className="app-container">
-        <WorkflowWindow targetNode={targetNode} updateNodeFields={updateNodeFields} />
+      <div className="app-zoom-layer" style={{ transform: `scale(${uiScale})` }}>
+        <div className="app-container">
+          <WorkflowWindow targetNode={targetNode} updateNodeFields={updateNodeFields} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="app-container">
-      <header className="header animate-fade-in" style={{ marginBottom: '0.5rem', position: 'relative' }}>
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="theme-toggle"
-          title={'\uD14C\uB9C8 \uBCC0\uACBD'}
-        >
-          {theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19'}
-        </button>
-        <h1
-          style={{
-            fontSize: '2.5rem',
-            background: '-webkit-linear-gradient(45deg, var(--primary), #d8b4fe)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            margin: 0,
-          }}
-        >
-          {'\uBAA9\uD45C \uB2EC\uC131 \uC9C0\uD45C'}
-        </h1>
-
-        <div className="view-selector" style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.5rem' }}>
-          <button className={`view-tab ${currentView === 'main' ? 'active' : ''}`} onClick={() => setCurrentView('main')}>
-            {'\uC2A4\uCF00\uC904\uB7EC \uBCF4\uB4DC'}
+    <div className="app-zoom-layer" style={{ transform: `scale(${uiScale})` }}>
+      <div className="app-container">
+        <header className="header animate-fade-in" style={{ marginBottom: '0.5rem', position: 'relative' }}>
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="theme-toggle"
+            title={'\uD14C\uB9C8 \uBCC0\uACBD'}
+          >
+            {theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19'}
           </button>
-          <button className={`view-tab ${currentView === 'vision' ? 'active' : ''}`} onClick={() => setCurrentView('vision')}>
-            {'\uBE44\uC804 \uBCF4\uB4DC'}
-          </button>
-          <button className={`view-tab ${currentView === 'manage' ? 'active' : ''}`} onClick={() => setCurrentView('manage')}>
-            {'\uD504\uB85C\uC81D\uD2B8 \uAD6C\uC131 \uAD00\uB9AC'}
-          </button>
-        </div>
+          <h1
+            style={{
+              fontSize: '2.5rem',
+              background: '-webkit-linear-gradient(45deg, var(--primary), #d8b4fe)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              margin: 0,
+            }}
+          >
+            {'\uBAA9\uD45C \uB2EC\uC131 \uC9C0\uD45C'}
+          </h1>
 
-        <p className="sync-status">{syncStatus}</p>
-      </header>
+          <div className="view-selector" style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.5rem' }}>
+            <button className={`view-tab ${currentView === 'main' ? 'active' : ''}`} onClick={() => setCurrentView('main')}>
+              {'\uC2A4\uCF00\uC904\uB7EC \uBCF4\uB4DC'}
+            </button>
+            <button className={`view-tab ${currentView === 'vision' ? 'active' : ''}`} onClick={() => setCurrentView('vision')}>
+              {'\uBE44\uC804 \uBCF4\uB4DC'}
+            </button>
+            <button className={`view-tab ${currentView === 'manage' ? 'active' : ''}`} onClick={() => setCurrentView('manage')}>
+              {'\uD504\uB85C\uC81D\uD2B8 \uAD6C\uC131 \uAD00\uB9AC'}
+            </button>
+          </div>
 
-      {currentView === 'manage' ? (
-        <ManagePage
-          treeNodes={treeNodes}
-          addRootProject={addRootProject}
-          addChildNode={addChildNode}
-          updateNodeFields={updateNodeFields}
-          deleteNode={deleteNode}
-        />
-      ) : currentView === 'vision' ? (
-        <VisionBoard items={visionItems} setItems={setVisionItems} />
-      ) : (
-        <>
-          <ProjectDashboard
+          <p className="sync-status">{syncStatus}</p>
+        </header>
+
+        {currentView === 'manage' ? (
+          <ManagePage
             treeNodes={treeNodes}
             addRootProject={addRootProject}
             addChildNode={addChildNode}
-            deleteNode={deleteNode}
             updateNodeFields={updateNodeFields}
-            toggleDayAssignment={toggleDayAssignment}
-            moveNode={moveNode}
+            deleteNode={deleteNode}
           />
+        ) : currentView === 'vision' ? (
+          <VisionBoard items={visionItems} setItems={setVisionItems} />
+        ) : (
+          <>
+            <ProjectDashboard
+              treeNodes={treeNodes}
+              addRootProject={addRootProject}
+              addChildNode={addChildNode}
+              deleteNode={deleteNode}
+              updateNodeFields={updateNodeFields}
+              toggleDayAssignment={toggleDayAssignment}
+              moveNode={moveNode}
+            />
 
-          <div className="execution-section animate-fade-in" style={{ animationDelay: '0.2s', marginTop: '1rem' }}>
-            <div className="day-tabs">
-              {weekOrder.map((dayIndex) => (
-                <button
-                  key={dayIndex}
-                  className={`day-tab ${activeDay === dayIndex ? 'active' : ''}`}
-                  onClick={() => setActiveDay(dayIndex)}
-                >
-                  {dayNames[dayIndex]}
+            <div className="execution-section animate-fade-in" style={{ animationDelay: '0.2s', marginTop: '1rem' }}>
+              <div className="day-tabs">
+                {weekOrder.map((dayIndex) => (
+                  <button
+                    key={dayIndex}
+                    className={`day-tab ${activeDay === dayIndex ? 'active' : ''}`}
+                    onClick={() => setActiveDay(dayIndex)}
+                  >
+                    {dayNames[dayIndex]}
+                  </button>
+                ))}
+                <button className={`day-tab memo-tab ${activeDay === 'memo' ? 'active' : ''}`} onClick={() => setActiveDay('memo')}>
+                  {'\uC790\uC720 \uBA54\uBAA8'}
                 </button>
-              ))}
-              <button className={`day-tab memo-tab ${activeDay === 'memo' ? 'active' : ''}`} onClick={() => setActiveDay('memo')}>
-                {'\uC790\uC720 \uBA54\uBAA8'}
-              </button>
-            </div>
+              </div>
 
-            {activeDay === 'memo' ? (
-              <MemoPad memos={globalMemos} setMemos={setGlobalMemos} />
-            ) : (
-              <DailyView
-                activeDay={activeDay}
-                treeNodes={treeNodes}
-                updateNodeFields={updateNodeFields}
-                toggleDayAssignment={toggleDayAssignment}
-              />
-            )}
-          </div>
-        </>
-      )}
+              {activeDay === 'memo' ? (
+                <MemoPad memos={globalMemos} setMemos={setGlobalMemos} />
+              ) : (
+                <DailyView
+                  activeDay={activeDay}
+                  treeNodes={treeNodes}
+                  updateNodeFields={updateNodeFields}
+                  toggleDayAssignment={toggleDayAssignment}
+                />
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

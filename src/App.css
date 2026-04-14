@@ -5,6 +5,13 @@
   gap: 1.5rem;
 }
 
+.app-zoom-layer {
+  width: 100%;
+  transform-origin: top center;
+  will-change: transform;
+  touch-action: pan-x pan-y;
+}
+
 .header {
   text-align: center;
   margin-bottom: 1rem;
@@ -38,6 +45,7 @@
   font-size: 2.5rem;
   background: -webkit-linear-gradient(45deg, var(--primary), #d8b4fe);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 0.5rem;
   border: none;
@@ -310,6 +318,7 @@
   justify-content: center;
   padding: 0 0.5rem 0 0;
   font-size: 1.2rem;
+  -webkit-user-select: none;
   user-select: none;
   transition: color 0.2s;
 }
@@ -662,8 +671,8 @@
   bottom: 0;
   border-radius: 50%;
   background: conic-gradient(var(--primary) var(--angle, 0%), transparent 0);
-  mask: radial-gradient(transparent 50%, black 50%);
   -webkit-mask: radial-gradient(transparent 50%, black 50%);
+  mask: radial-gradient(transparent 50%, black 50%);
 }
 
 /* Memo Pad Styles */
@@ -1149,62 +1158,37 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding-left: var(--child-gap); /* space from spine to child card */
-  margin-left: var(--parent-gap); /* space from parent card to spine */
+  padding-left: var(--child-gap);
+  margin-left: var(--parent-gap);
   position: relative;
 }
 
-/* Vertical segments per child row:
-   keeps connectors continuous while preventing top/bottom protrusion */
+.mindmap-children-col > .mindmap-group {
+  position: relative;
+}
+
 .mindmap-children-col > .mindmap-group > .mindmap-node-anchor {
   position: relative;
 }
 
-.mindmap-children-col > .mindmap-group > .mindmap-node-anchor::before {
-  content: "";
+/* JS-rendered connector lines */
+.connector-line {
   position: absolute;
-  left: calc(var(--child-gap) * -1);
-  top: -1px;
-  bottom: -1px;
-  width: var(--connector-size);
-  background: var(--connector-color);
-  border-radius: 0;
+  background: var(--connector-color, #38bdf8);
+  pointer-events: none;
+  z-index: 1;
 }
 
-.mindmap-children-col > .mindmap-group:first-child > .mindmap-node-anchor::before {
-  top: calc(50% - 1px);
+.connector-line.horizontal-out {
+  height: 2px;
 }
 
-.mindmap-children-col > .mindmap-group:last-child > .mindmap-node-anchor::before {
-  bottom: calc(50% - 1px);
+.connector-line.horizontal-in {
+  height: 2px;
 }
 
-.mindmap-children-col > .mindmap-group:only-child > .mindmap-node-anchor::before {
-  display: none;
-}
-
-/* Horizontal line OUT of the parent */
-.mindmap-group.has-children > .mindmap-node-anchor > .mindmap-node-card::after {
-  content: "";
-  position: absolute;
-  top: calc(50% - (var(--connector-size) / 2));
-  right: calc((var(--parent-gap) * -1) - 1px);
-  width: calc(var(--parent-gap) + 1px);
-  height: var(--connector-size);
-  background: var(--connector-color);
-  border-radius: 0;
-}
-
-/* Horizontal line INTO the child */
-.mindmap-children-col > .mindmap-group > .mindmap-node-anchor > .mindmap-node-card::before {
-  content: "";
-  position: absolute;
-  top: calc(50% - (var(--connector-size) / 2));
-  left: calc((var(--child-gap) * -1) - 1px);
-  width: calc(var(--child-gap) + 1px);
-  height: var(--connector-size);
-  background: var(--connector-color);
-  border-radius: 0;
+.connector-line.vertical-spine {
+  width: 2px;
 }
 
 /* Add input */
@@ -1541,6 +1525,7 @@
   align-items: center;
   text-align: center;
   cursor: grab;
+  -webkit-user-select: none;
   user-select: none;
   z-index: 2;
 }
@@ -1712,4 +1697,43 @@
 
 .workflow-delete {
   opacity: 1;
+}
+
+.sync-panel {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.sync-input {
+  width: min(420px, 92vw);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.sync-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.disconnect-tab {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+.sync-status {
+  width: 100%;
+  margin: 0.2rem 0 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.84rem;
 }
