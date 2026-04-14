@@ -99,7 +99,10 @@ export default async function handler(req, res) {
       res.status(200).json({ data: data || null });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: '동기화 데이터 조회에 실패했습니다.' });
+      res.status(500).json({
+        error: '동기화 데이터 조회에 실패했습니다.',
+        detail: error instanceof Error ? error.message : String(error),
+      });
     }
     return;
   }
@@ -127,7 +130,10 @@ export default async function handler(req, res) {
       res.status(200).json({ ok: true });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: '동기화 데이터 저장에 실패했습니다.' });
+      res.status(500).json({
+        error: '동기화 데이터 저장에 실패했습니다.',
+        detail: error instanceof Error ? error.message : String(error),
+      });
     }
     return;
   }
