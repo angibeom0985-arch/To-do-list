@@ -46,6 +46,8 @@ function App() {
   const pinchStartScaleRef = useRef(1);
   const [uiScale, setUiScale] = useLocalStorage(UI_SCALE_STORAGE_KEY, 1);
   const uiScaleRef = useRef(1);
+  const projectPinchZoneRef = useRef(null);
+  const visionPinchZoneRef = useRef(null);
   const workflowNodeId = new URLSearchParams(window.location.search).get('workflowNode');
 
   const applyCloudSnapshot = useCallback((cloudData) => {
@@ -87,15 +89,44 @@ function App() {
     uiScaleRef.current = uiScale;
   }, [uiScale]);
 
+  const isTouchInsideElement = useCallback((touch, element) => {
+    if (!touch || !element) return false;
+    const rect = element.getBoundingClientRect();
+    return touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+  }, []);
+
+  const isPinchTargetTouch = useCallback((touches) => {
+    if (!touches || touches.length !== 2) return false;
+
+    if (currentView === 'main') {
+      return isTouchInsideElement(touches[0], projectPinchZoneRef.current) && isTouchInsideElement(touches[1], projectPinchZoneRef.current);
+    }
+
+    if (currentView === 'vision') {
+      return isTouchInsideElement(touches[0], visionPinchZoneRef.current) && isTouchInsideElement(touches[1], visionPinchZoneRef.current);
+    }
+
+    return false;
+  }, [currentView, isTouchInsideElement]);
+
   useEffect(() => {
     const handleTouchStart = (event) => {
-      if (event.touches.length !== 2) return;
+      if (event.touches.length !== 2 || !isPinchTargetTouch(event.touches)) {
+        pinchStartDistanceRef.current = null;
+        return;
+      }
+
       pinchStartDistanceRef.current = getTouchDistance(event.touches);
       pinchStartScaleRef.current = uiScaleRef.current;
     };
 
     const handleTouchMove = (event) => {
       if (event.touches.length !== 2 || pinchStartDistanceRef.current === null) return;
+
+      if (!isPinchTargetTouch(event.touches)) {
+        pinchStartDistanceRef.current = null;
+        return;
+      }
 
       event.preventDefault();
       const currentDistance = getTouchDistance(event.touches);
@@ -128,7 +159,7 @@ function App() {
       document.removeEventListener('gesturestart', preventNativeGestureZoom);
       document.removeEventListener('gesturechange', preventNativeGestureZoom);
     };
-  }, []);
+  }, [isPinchTargetTouch, setUiScale]);
 
   useEffect(() => {
     const trimmedKey = AUTO_SYNC_KEY;
@@ -454,64 +485,72 @@ function App() {
   if (workflowNodeId) {
     const targetNode = findNodeById(treeNodes, workflowNodeId);
     return (
-      <div className="app-zoom-layer" style={{ transform: `scale(${uiScale})` }}>
-        <div className="app-container">
-          <WorkflowWindow targetNode={targetNode} updateNodeFields={updateNodeFields} />
-        </div>
+      <div className="app-container">
+        <WorkflowWindow targetNode={targetNode} updateNodeFields={updateNodeFields} />
       </div>
     );
   }
 
   return (
-    <div className="app-zoom-layer" style={{ transform: `scale(${uiScale})` }}>
-      <div className="app-container">
-        <header className="header animate-fade-in" style={{ marginBottom: '0.5rem', position: 'relative' }}>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="theme-toggle"
-            title={'\uD14C\uB9C8 \uBCC0\uACBD'}
-          >
-            {theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19'}
+    <div className="app-container">
+      <header className="header animate-fade-in" style={{ marginBottom: '0.5rem', position: 'relative' }}>
+        <button
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="theme-toggle"
+          title={'\uD14C\uB9C8 \uBCC0\uACBD'}
+        >
+          {theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19'}
+        </button>
+        <h1
+          style={{
+            fontSize: '2.5rem',
+            background: '-webkit-linear-gradient(45deg, var(--primary), #d8b4fe)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            margin: 0,
+          }}
+        >
+          {'\uBAA9\uD45C \uB2EC\uC131 \uC9C0\uD45C'}
+        </h1>
+
+        <div className="view-selector" style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.5rem' }}>
+          <button className={`view-tab ${currentView === 'main' ? 'active' : ''}`} onClick={() => setCurrentView('main')}>
+            {'\uC2A4\uCF00\uC904\uB7EC \uBCF4\uB4DC'}
           </button>
-          <h1
-            style={{
-              fontSize: '2.5rem',
-              background: '-webkit-linear-gradient(45deg, var(--primary), #d8b4fe)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              margin: 0,
-            }}
-          >
-            {'\uBAA9\uD45C \uB2EC\uC131 \uC9C0\uD45C'}
-          </h1>
+          <button className={`view-tab ${currentView === 'vision' ? 'active' : ''}`} onClick={() => setCurrentView('vision')}>
+            {'\uBE44\uC804 \uBCF4\uB4DC'}
+          </button>
+          <button className={`view-tab ${currentView === 'manage' ? 'active' : ''}`} onClick={() => setCurrentView('manage')}>
+            {'\uD504\uB85C\uC81D\uD2B8 \uAD6C\uC131 \uAD00\uB9AC'}
+          </button>
+        </div>
 
-          <div className="view-selector" style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.5rem' }}>
-            <button className={`view-tab ${currentView === 'main' ? 'active' : ''}`} onClick={() => setCurrentView('main')}>
-              {'\uC2A4\uCF00\uC904\uB7EC \uBCF4\uB4DC'}
-            </button>
-            <button className={`view-tab ${currentView === 'vision' ? 'active' : ''}`} onClick={() => setCurrentView('vision')}>
-              {'\uBE44\uC804 \uBCF4\uB4DC'}
-            </button>
-            <button className={`view-tab ${currentView === 'manage' ? 'active' : ''}`} onClick={() => setCurrentView('manage')}>
-              {'\uD504\uB85C\uC81D\uD2B8 \uAD6C\uC131 \uAD00\uB9AC'}
-            </button>
-          </div>
+        <p className="sync-status">{syncStatus}</p>
+      </header>
 
-          <p className="sync-status">{syncStatus}</p>
-        </header>
-
-        {currentView === 'manage' ? (
-          <ManagePage
-            treeNodes={treeNodes}
-            addRootProject={addRootProject}
-            addChildNode={addChildNode}
-            updateNodeFields={updateNodeFields}
-            deleteNode={deleteNode}
-          />
-        ) : currentView === 'vision' ? (
+      {currentView === 'manage' ? (
+        <ManagePage
+          treeNodes={treeNodes}
+          addRootProject={addRootProject}
+          addChildNode={addChildNode}
+          updateNodeFields={updateNodeFields}
+          deleteNode={deleteNode}
+        />
+      ) : currentView === 'vision' ? (
+        <div
+          ref={visionPinchZoneRef}
+          className="pinch-zoom-scope"
+          style={{ transform: `scale(${uiScale})` }}
+        >
           <VisionBoard items={visionItems} setItems={setVisionItems} />
-        ) : (
-          <>
+        </div>
+      ) : (
+        <>
+          <div
+            ref={projectPinchZoneRef}
+            className="pinch-zoom-scope"
+            style={{ transform: `scale(${uiScale})` }}
+          >
             <ProjectDashboard
               treeNodes={treeNodes}
               addRootProject={addRootProject}
@@ -521,37 +560,37 @@ function App() {
               toggleDayAssignment={toggleDayAssignment}
               moveNode={moveNode}
             />
+          </div>
 
-            <div className="execution-section animate-fade-in" style={{ animationDelay: '0.2s', marginTop: '1rem' }}>
-              <div className="day-tabs">
-                {weekOrder.map((dayIndex) => (
-                  <button
-                    key={dayIndex}
-                    className={`day-tab ${activeDay === dayIndex ? 'active' : ''}`}
-                    onClick={() => setActiveDay(dayIndex)}
-                  >
-                    {dayNames[dayIndex]}
-                  </button>
-                ))}
-                <button className={`day-tab memo-tab ${activeDay === 'memo' ? 'active' : ''}`} onClick={() => setActiveDay('memo')}>
-                  {'\uC790\uC720 \uBA54\uBAA8'}
+          <div className="execution-section animate-fade-in" style={{ animationDelay: '0.2s', marginTop: '1rem' }}>
+            <div className="day-tabs">
+              {weekOrder.map((dayIndex) => (
+                <button
+                  key={dayIndex}
+                  className={`day-tab ${activeDay === dayIndex ? 'active' : ''}`}
+                  onClick={() => setActiveDay(dayIndex)}
+                >
+                  {dayNames[dayIndex]}
                 </button>
-              </div>
-
-              {activeDay === 'memo' ? (
-                <MemoPad memos={globalMemos} setMemos={setGlobalMemos} />
-              ) : (
-                <DailyView
-                  activeDay={activeDay}
-                  treeNodes={treeNodes}
-                  updateNodeFields={updateNodeFields}
-                  toggleDayAssignment={toggleDayAssignment}
-                />
-              )}
+              ))}
+              <button className={`day-tab memo-tab ${activeDay === 'memo' ? 'active' : ''}`} onClick={() => setActiveDay('memo')}>
+                {'\uC790\uC720 \uBA54\uBAA8'}
+              </button>
             </div>
-          </>
-        )}
-      </div>
+
+            {activeDay === 'memo' ? (
+              <MemoPad memos={globalMemos} setMemos={setGlobalMemos} />
+            ) : (
+              <DailyView
+                activeDay={activeDay}
+                treeNodes={treeNodes}
+                updateNodeFields={updateNodeFields}
+                toggleDayAssignment={toggleDayAssignment}
+              />
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
