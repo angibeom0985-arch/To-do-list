@@ -38,46 +38,49 @@ function getUpstashConfig(res) {
   return { url: url.replace(/\/$/, ''), token };
 }
 
-async function upstashGet(config, redisKey) {
-  const endpoint = `${config.url}/GET/${encodeURIComponent(redisKey)}`;
-  const response = await fetch(endpoint, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${config.token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Upstash GET failed: ${response.status}`);
-  }
-
-  const payload = await response.json();
-  if (payload?.error) {
-    throw new Error(`Upstash GET error: ${payload.error}`);
-  }
-
-  return payload?.result ?? null;
-}
-
-async function upstashSet(config, redisKey, value) {
-  const endpoint = `${config.url}/SET/${encodeURIComponent(redisKey)}`;
+async function runPipeline(config, commands) {
+  const endpoint = `${config.url}/pipeline`;
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(value),
+    body: JSON.stringify(commands),
   });
 
   if (!response.ok) {
-    throw new Error(`Upstash SET failed: ${response.status}`);
+    throw new Error(`Upstash pipeline failed: ${response.status}`);
   }
 
   const payload = await response.json();
-  if (payload?.error) {
-    throw new Error(`Upstash SET error: ${payload.error}`);
+  if (!Array.isArray(payload) || !payload.length) {
+    throw new Error('Upstash pipeline returned empty response');
   }
+
+  const first = payload[0];
+  if (first?.error) {
+    throw new Error(`Upstash pipeline error: ${first.error}`);
+  }
+
+  return first?.result ?? null;
+}
+
+async function upstashGet(config, redisKey) {
+  const result = await runPipeline(config, [['GET', redisKey]]);
+  if (result === null || result === undefined) return null;
+  if (typeof result === 'string') {
+    try {
+      return JSON.parse(result);
+    } catch {
+      return result;
+    }
+  }
+  return result;
+}
+
+async function upstashSet(config, redisKey, value) {
+  await runPipeline(config, [['SET', redisKey, JSON.stringify(value)]]);
 }
 
 export default async function handler(req, res) {
