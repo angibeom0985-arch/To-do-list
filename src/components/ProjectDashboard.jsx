@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 
 const COLOR_PALETTE = {
   default: { main: '#8b5cf6', light: 'rgba(139, 92, 246, 0.2)' },
@@ -147,17 +147,133 @@ function TreeItem({
   onNodeDragOver,
   onNodeDrop,
   onNodeDragEnd,
+  parentChildCardRef,
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [newChildTitle, setNewChildTitle] = useState('');
   const [showDetails, setShowDetails] = useState(false);
   const [showMemo, setShowMemo] = useState(false);
+  const cancelAddChild = React.useCallback(() => {
+    setNewChildTitle('');
+    setIsAdding(false);
+  }, []);
+
+  const parentCardRef = React.useRef(null);
+  const childrenColRef = React.useRef(null);
+  const childCardRefs = React.useRef({});
+
+  // Connector line refs (direct DOM manipulation to avoid re-render loops)
+  const hOutRef = React.useRef(null);
+  const vSpineRef = React.useRef(null);
+  const hInRefs = React.useRef([]);
+
+  const updateConnectors = React.useCallback(() => {
+    const parentCard = parentCardRef.current;
+    const childrenCol = childrenColRef.current;
+    if (!parentCard || !childrenCol) return;
+
+    const childCards = Object.values(childCardRefs.current).filter(Boolean);
+    if (childCards.length === 0) return;
+
+    const colRect = childrenCol.getBoundingClientRect();
+    const parentRect = parentCard.getBoundingClientRect();
+
+    const parentCenterY = parentRect.top + parentRect.height / 2 - colRect.top;
+    const hOutRight = colRect.left - parentRect.right;
+
+    const computedStyle = getComputedStyle(childrenCol);
+    const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+
+    // Horizontal line out of parent
+    if (hOutRef.current) {
+      const s = hOutRef.current.style;
+      s.top = `${parentCenterY - 1}px`;
+      s.left = `${-(Math.abs(hOutRight) + paddingLeft)}px`;
+      s.width = `${Math.abs(hOutRight) + paddingLeft}px`;
+      s.height = '2px';
+      s.display = '';
+    }
+
+    // Compute child centers
+    const childCenters = childCards.map(card => {
+      const r = card.getBoundingClientRect();
+      return r.top + r.height / 2 - colRect.top;
+    });
+
+    const minY = Math.min(...childCenters);
+    const maxY = Math.max(...childCenters);
+
+    // Vertical spine
+    if (vSpineRef.current) {
+      if (childCenters.length > 1) {
+        const s = vSpineRef.current.style;
+        s.top = `${minY}px`;
+        s.left = '0px';
+        s.height = `${maxY - minY}px`;
+        s.width = '2px';
+        s.display = '';
+      } else {
+        vSpineRef.current.style.display = 'none';
+      }
+    }
+
+    // Horizontal lines into children
+    childCenters.forEach((cy, idx) => {
+      const el = hInRefs.current[idx];
+      if (el) {
+        const s = el.style;
+        s.top = `${cy - 1}px`;
+        s.left = '0px';
+        s.width = `${paddingLeft}px`;
+        s.height = '2px';
+        s.display = '';
+      }
+    });
+
+    // Hide extra refs
+    for (let i = childCenters.length; i < hInRefs.current.length; i++) {
+      if (hInRefs.current[i]) {
+        hInRefs.current[i].style.display = 'none';
+      }
+    }
+  }, []);
+
+  React.useEffect(() => {
+    const childrenCol = childrenColRef.current;
+    if (!childrenCol) return;
+
+    // Initial update after a frame so layout is computed
+    const rafId = requestAnimationFrame(updateConnectors);
+
+    // Observe for size changes
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(updateConnectors);
+    });
+    ro.observe(childrenCol);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      ro.disconnect();
+    };
+  }, [updateConnectors, node.isExpanded, isAdding]);
+
+  React.useEffect(() => {
+    if (!isAdding) return undefined;
+
+    const handleGlobalEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      cancelAddChild();
+    };
+
+    window.addEventListener('keydown', handleGlobalEscape);
+    return () => window.removeEventListener('keydown', handleGlobalEscape);
+  }, [cancelAddChild, isAdding]);
 
   const submitAddChild = () => {
     if (newChildTitle.trim()) {
       addChildNode(node.id, node.depth, newChildTitle.trim());
       setNewChildTitle('');
-      // Do not setIsAdding(false) so the user can continuously add multiple children
     } else {
       setIsAdding(false);
     }
@@ -167,12 +283,15 @@ function TreeItem({
     if (e.key === 'Enter' || e.key === 'NumpadEnter') {
       e.preventDefault();
       submitAddChild();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelAddChild();
     }
   };
 
   const handleCancelAddChild = (e) => {
     e.preventDefault();
-    setIsAdding(false);
+    cancelAddChild();
   };
 
   const getNodeMemos = () => {
@@ -235,6 +354,7 @@ function TreeItem({
   } : {};
 
   const hasChildren = node.children && node.children.length > 0;
+  const childCount = hasChildren ? node.children.length : 0;
   const getDropPosition = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const y = event.clientY - rect.top;
@@ -244,11 +364,22 @@ function TreeItem({
     return 'inside';
   };
 
+  const showChildrenCol = (hasChildren && node.isExpanded) || isAdding;
+
+  // Ensure hInRefs array has enough slots
+  if (hInRefs.current.length < childCount) {
+    hInRefs.current.length = childCount;
+  }
+
   return (
     <div className={`mindmap-group depth-${node.depth} ${hasChildren && node.isExpanded ? 'has-children' : ''}`} style={customStyles}>
 
       <div className="mindmap-node-anchor">
         <div
+          ref={(el) => {
+            parentCardRef.current = el;
+            if (parentChildCardRef) parentChildCardRef(el);
+          }}
           className={`mindmap-node-card ${isTaskNode && node.completed ? 'completed' : ''} ${draggedNodeId === node.id ? 'dragging' : ''} ${dragOverNodeId === node.id ? `drag-over drop-${dragOverPosition}` : ''}`}
           draggable
           onDragStart={(e) => {
@@ -380,7 +511,7 @@ function TreeItem({
             </div>
           )}
 
-          {/* Expand/Collapse Toggle Button (floating at bottom of card, or right side) */}
+          {/* Expand/Collapse Toggle Button */}
           {showDetails && hasChildren && (
             <button
               className={`mm-expand-btn ${node.isExpanded ? 'expanded' : ''}`}
@@ -425,8 +556,20 @@ function TreeItem({
       </div>
 
       {/* Children Col & Add Child Drawer */}
-      {(hasChildren && node.isExpanded) || isAdding ? (
-        <div className="mindmap-children-col">
+      {showChildrenCol ? (
+        <div className="mindmap-children-col" ref={childrenColRef}>
+          {/* Connector line elements (positioned via direct DOM manipulation) */}
+          <div ref={hOutRef} className="connector-line horizontal-out" style={{ position: 'absolute', display: 'none' }} />
+          <div ref={vSpineRef} className="connector-line vertical-spine" style={{ position: 'absolute', display: 'none' }} />
+          {Array.from({ length: childCount }).map((_, idx) => (
+            <div
+              key={`h-in-${idx}`}
+              ref={(el) => { hInRefs.current[idx] = el; }}
+              className="connector-line horizontal-in"
+              style={{ position: 'absolute', display: 'none' }}
+            />
+          ))}
+
           {hasChildren && node.isExpanded && node.children.map(child => (
             <TreeItem
               key={child.id}
@@ -442,6 +585,7 @@ function TreeItem({
               onNodeDragOver={onNodeDragOver}
               onNodeDrop={onNodeDrop}
               onNodeDragEnd={onNodeDragEnd}
+              parentChildCardRef={(el) => { childCardRefs.current[child.id] = el; }}
             />
           ))}
 
@@ -487,5 +631,3 @@ function TreeItem({
     </div>
   );
 }
-
-
