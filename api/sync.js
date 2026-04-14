@@ -2,7 +2,6 @@
 
 const MIN_KEY_LENGTH = 4;
 const MAX_KEY_LENGTH = 80;
-const redis = Redis.fromEnv();
 
 function normalizeKey(rawKey) {
   if (typeof rawKey !== 'string') return null;
@@ -38,8 +37,23 @@ function assertRedisReady(res) {
   return true;
 }
 
+function getRedisClient() {
+  return new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+}
+
 export default async function handler(req, res) {
   if (!assertRedisReady(res)) return;
+  let redis;
+  try {
+    redis = getRedisClient();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Redis 클라이언트 초기화에 실패했습니다.' });
+    return;
+  }
 
   if (req.method === 'GET') {
     const syncKey = normalizeKey(req.query?.key);
