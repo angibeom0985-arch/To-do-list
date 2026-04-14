@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import ProjectDashboard from './components/ProjectDashboard';
@@ -8,8 +8,14 @@ import ManagePage from './components/ManagePage';
 import VisionBoard from './components/VisionBoard';
 import WorkflowWindow from './components/WorkflowWindow';
 
-const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+const dayNames = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'];
 const weekOrder = [1, 2, 3, 4, 5, 6, 0];
+const AUTO_SYNC_KEY = 'to-do-list-owner-default';
+const CLOUD_POLL_INTERVAL_MS = 20000;
+const toTimestamp = (value) => {
+  const parsed = Date.parse(value || '');
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
 
 function App() {
   const [treeNodes, setTreeNodes] = useLocalStorage('projects-v2', []);
@@ -18,7 +24,28 @@ function App() {
   const [activeDay, setActiveDay] = useState(new Date().getDay());
   const [theme, setTheme] = useLocalStorage('app-theme', 'dark');
   const [currentView, setCurrentView] = useState('main'); // 'main' | 'vision' | 'manage'
+  const [syncStatus, setSyncStatus] = useState('\uD074\uB77C\uC6B0\uB4DC \uB3D9\uAE30\uD654 \uC5F0\uACB0 \uC911...');
+  const [isSyncReady, setIsSyncReady] = useState(false);
+  const isHydratingFromCloudRef = useRef(false);
+  const hasPendingLocalChangesRef = useRef(false);
+  const latestCloudSavedAtRef = useRef('');
+  const saveTimerRef = useRef(null);
   const workflowNodeId = new URLSearchParams(window.location.search).get('workflowNode');
+
+  const applyCloudSnapshot = useCallback((cloudData) => {
+    setTreeNodes(Array.isArray(cloudData.treeNodes) ? cloudData.treeNodes : []);
+    setGlobalMemos(Array.isArray(cloudData.globalMemos) ? cloudData.globalMemos : []);
+    setVisionItems(Array.isArray(cloudData.visionItems) ? cloudData.visionItems : []);
+    setTheme(cloudData.theme === 'light' ? 'light' : 'dark');
+    setCurrentView(
+      cloudData.currentView === 'manage' || cloudData.currentView === 'vision' ? cloudData.currentView : 'main',
+    );
+    setActiveDay(
+      cloudData.activeDay === 'memo' ? 'memo' : Number.isInteger(cloudData.activeDay) && cloudData.activeDay >= 0 && cloudData.activeDay <= 6
+        ? cloudData.activeDay
+        : new Date().getDay(),
+    );
+  }, [setGlobalMemos, setTheme, setTreeNodes, setVisionItems]);
 
   useEffect(() => {
     if (theme === 'light') {
@@ -27,6 +54,145 @@ function App() {
       document.body.classList.remove('light-mode');
     }
   }, [theme]);
+
+  useEffect(() => {
+    const trimmedKey = AUTO_SYNC_KEY;
+
+    let cancelled = false;
+    isHydratingFromCloudRef.current = true;
+    setSyncStatus('\uD074\uB77C\uC6B0\uB4DC \uB370\uC774\uD130 \uBD88\uB7EC\uC624\uB294 \uC911...');
+
+    const loadCloudState = async () => {
+      try {
+        const response = await fetch(`/api/sync?key=${encodeURIComponent(trimmedKey)}`);
+        if (!response.ok) {
+          throw new Error('\uB3D9\uAE30\uD654 \uBD88\uB7EC\uC624\uAE30 \uC2E4\uD328');
+        }
+
+        const payload = await response.json();
+        const cloudData = payload?.data;
+
+        if (!cancelled && cloudData) {
+          applyCloudSnapshot(cloudData);
+          latestCloudSavedAtRef.current = typeof cloudData.savedAt === 'string' ? cloudData.savedAt : '';
+          hasPendingLocalChangesRef.current = false;
+        }
+
+        if (!cancelled) {
+          setIsSyncReady(true);
+          setSyncStatus(
+            cloudData
+              ? '\uD074\uB77C\uC6B0\uB4DC \uB3D9\uAE30\uD654 \uC5F0\uACB0\uB428'
+              : '\uC0C8 \uB3D9\uAE30\uD654 \uACF5\uAC04 \uC0DD\uC131\uB428 (\uCCAB \uC800\uC7A5 \uB300\uAE30)',
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setIsSyncReady(false);
+          setSyncStatus('\uB3D9\uAE30\uD654 \uC2E4\uD328 (\uD0A4 \uB610\uB294 \uC11C\uBC84 \uC0C1\uD0DC \uD655\uC778)');
+          console.error(error);
+        }
+      } finally {
+        setTimeout(() => {
+          isHydratingFromCloudRef.current = false;
+        }, 0);
+      }
+    };
+
+    loadCloudState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyCloudSnapshot]);
+
+  useEffect(() => {
+    const trimmedKey = AUTO_SYNC_KEY;
+    if (!isSyncReady || isHydratingFromCloudRef.current) return;
+
+    hasPendingLocalChangesRef.current = true;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+    const snapshot = {
+      treeNodes,
+      globalMemos,
+      visionItems,
+      activeDay,
+      theme,
+      currentView,
+      savedAt: new Date().toISOString(),
+    };
+
+    saveTimerRef.current = setTimeout(async () => {
+      setSyncStatus('\uD074\uB77C\uC6B0\uB4DC \uC800\uC7A5 \uC911...');
+      try {
+        const response = await fetch('/api/sync', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            key: trimmedKey,
+            data: snapshot,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('\uC800\uC7A5 \uC2E4\uD328');
+        }
+
+        latestCloudSavedAtRef.current = snapshot.savedAt;
+        hasPendingLocalChangesRef.current = false;
+        const savedTime = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+        setSyncStatus(`\uB3D9\uAE30\uD654 \uC644\uB8CC (${savedTime})`);
+      } catch (error) {
+        setSyncStatus('\uB3D9\uAE30\uD654 \uC800\uC7A5 \uC2E4\uD328');
+        console.error(error);
+      }
+    }, 700);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [activeDay, currentView, globalMemos, isSyncReady, theme, treeNodes, visionItems]);
+
+  useEffect(() => {
+    const trimmedKey = AUTO_SYNC_KEY;
+    if (!isSyncReady) return;
+
+    const pullLatestCloudState = async () => {
+      if (isHydratingFromCloudRef.current || hasPendingLocalChangesRef.current) return;
+
+      try {
+        const response = await fetch(`/api/sync?key=${encodeURIComponent(trimmedKey)}`);
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const cloudData = payload?.data;
+        if (!cloudData) return;
+
+        const remoteSavedAt = typeof cloudData.savedAt === 'string' ? cloudData.savedAt : '';
+        const isRemoteNewer = toTimestamp(remoteSavedAt) > toTimestamp(latestCloudSavedAtRef.current);
+        if (!isRemoteNewer) return;
+
+        isHydratingFromCloudRef.current = true;
+        applyCloudSnapshot(cloudData);
+        latestCloudSavedAtRef.current = remoteSavedAt;
+        hasPendingLocalChangesRef.current = false;
+        setSyncStatus('\uB2E4\uB978 \uAE30\uAE30\uC758 \uCD5C\uC2E0 \uBCC0\uACBD\uC0AC\uD56D\uC744 \uBC18\uC601\uD588\uC5B4\uC694');
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setTimeout(() => {
+          isHydratingFromCloudRef.current = false;
+        }, 0);
+      }
+    };
+
+    const pollId = setInterval(pullLatestCloudState, CLOUD_POLL_INTERVAL_MS);
+    return () => clearInterval(pollId);
+  }, [applyCloudSnapshot, isSyncReady]);
 
   const mapNodes = (nodes, targetId, updateFn) => {
     return nodes.map((node) => {
@@ -225,9 +391,9 @@ function App() {
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className="theme-toggle"
-          title="테마 변경"
+          title={'\uD14C\uB9C8 \uBCC0\uACBD'}
         >
-          {theme === 'dark' ? '☀️' : '🌙'}
+          {theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19'}
         </button>
         <h1
           style={{
@@ -238,20 +404,22 @@ function App() {
             margin: 0,
           }}
         >
-          목표 달성 지표
+          {'\uBAA9\uD45C \uB2EC\uC131 \uC9C0\uD45C'}
         </h1>
 
         <div className="view-selector" style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem', marginTop: '1.5rem' }}>
           <button className={`view-tab ${currentView === 'main' ? 'active' : ''}`} onClick={() => setCurrentView('main')}>
-            🔥 스케줄러 보드
+            {'\uC2A4\uCF00\uC904\uB7EC \uBCF4\uB4DC'}
           </button>
           <button className={`view-tab ${currentView === 'vision' ? 'active' : ''}`} onClick={() => setCurrentView('vision')}>
-            🧭 비전 보드
+            {'\uBE44\uC804 \uBCF4\uB4DC'}
           </button>
           <button className={`view-tab ${currentView === 'manage' ? 'active' : ''}`} onClick={() => setCurrentView('manage')}>
-            ⚙️ 프로젝트 구성 관리
+            {'\uD504\uB85C\uC81D\uD2B8 \uAD6C\uC131 \uAD00\uB9AC'}
           </button>
         </div>
+
+        <p className="sync-status">{syncStatus}</p>
       </header>
 
       {currentView === 'manage' ? (
@@ -288,7 +456,7 @@ function App() {
                 </button>
               ))}
               <button className={`day-tab memo-tab ${activeDay === 'memo' ? 'active' : ''}`} onClick={() => setActiveDay('memo')}>
-                자유 메모
+                {'\uC790\uC720 \uBA54\uBAA8'}
               </button>
             </div>
 
@@ -310,3 +478,4 @@ function App() {
 }
 
 export default App;
+
