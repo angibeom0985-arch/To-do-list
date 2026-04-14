@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 /**
  * A custom hook to use localStorage with React state.
@@ -22,7 +22,7 @@ export function useLocalStorage(key, initialValue) {
 
   // Return a wrapped version of useState's setter function that ...
   // ... persists the new value to localStorage.
-  const setValue = (value) => {
+  const setValue = useCallback((value) => {
     try {
       setStoredValue((prevValue) => {
         // Allow value to be a function so we have same API as useState
@@ -38,7 +38,7 @@ export function useLocalStorage(key, initialValue) {
     } catch (error) {
       console.error(error);
     }
-  };
+  }, [key]);
 
   return [storedValue, setValue];
 }
