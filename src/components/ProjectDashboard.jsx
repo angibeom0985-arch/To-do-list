@@ -30,6 +30,13 @@ const calculateProgress = (node) => {
   return Math.round((completed / tasks) * 100);
 };
 
+const childCardsFromNode = (children, refsMap) => {
+  if (!Array.isArray(children)) return [];
+  return children
+    .map((child) => refsMap[child.id])
+    .filter(Boolean);
+};
+
 export default function ProjectDashboard({
   treeNodes,
   addRootProject,
@@ -176,13 +183,30 @@ function TreeItem({
   const vSpineRef = React.useRef(null);
   const hInRefs = React.useRef([]);
 
+  const hideConnectors = React.useCallback(() => {
+    if (hOutRef.current) hOutRef.current.style.display = 'none';
+    if (vSpineRef.current) vSpineRef.current.style.display = 'none';
+    hInRefs.current.forEach((lineEl) => {
+      if (lineEl) lineEl.style.display = 'none';
+    });
+  }, []);
+
   const updateConnectors = React.useCallback(() => {
     const parentCard = parentCardRef.current;
     const childrenCol = childrenColRef.current;
-    if (!parentCard || !childrenCol) return;
+    if (!parentCard || !childrenCol) {
+      hideConnectors();
+      return;
+    }
 
-    const childCards = Object.values(childCardRefs.current).filter(Boolean);
-    if (childCards.length === 0) return;
+    const orderedChildren = Array.isArray(node.children) ? node.children : [];
+    const childCards = orderedChildren
+      .map((child) => childCardRefs.current[child.id])
+      .filter(Boolean);
+    if (childCards.length === 0) {
+      hideConnectors();
+      return;
+    }
 
     const colRect = childrenCol.getBoundingClientRect();
     const parentRect = parentCard.getBoundingClientRect();
@@ -246,26 +270,38 @@ function TreeItem({
         hInRefs.current[i].style.display = 'none';
       }
     }
-  }, []);
+  }, [hideConnectors, node.children]);
 
   React.useEffect(() => {
     const childrenCol = childrenColRef.current;
-    if (!childrenCol) return;
+    const parentCard = parentCardRef.current;
+    if (!childrenCol || !parentCard) return;
 
     // Initial update after a frame so layout is computed
-    const rafId = requestAnimationFrame(updateConnectors);
+    const rafId = requestAnimationFrame(() => {
+      requestAnimationFrame(updateConnectors);
+    });
 
     // Observe for size changes
     const ro = new ResizeObserver(() => {
       requestAnimationFrame(updateConnectors);
     });
     ro.observe(childrenCol);
+    ro.observe(parentCard);
+    childCardsFromNode(node.children, childCardRefs.current).forEach((cardEl) => ro.observe(cardEl));
 
     return () => {
       cancelAnimationFrame(rafId);
       ro.disconnect();
     };
-  }, [updateConnectors, node.isExpanded, isAdding]);
+  }, [updateConnectors, node.children, node.isExpanded, isAdding, draggedNodeId]);
+
+  React.useEffect(() => {
+    const rafId = requestAnimationFrame(() => {
+      requestAnimationFrame(updateConnectors);
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [updateConnectors, node.children, draggedNodeId]);
 
   React.useEffect(() => {
     if (!isAdding) return undefined;
