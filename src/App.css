@@ -838,6 +838,7 @@
 /* ========================================================= */
 
 .project-dashboard {
+  --project-density-scale: 1;
   padding: 1.5rem;
 }
 
@@ -907,6 +908,13 @@
   padding: 3rem;
   align-items: flex-start;
   min-height: 60vh;
+}
+
+.project-dashboard .mindmap-canvas {
+  transform-origin: top left;
+  transform: scale(var(--project-density-scale));
+  width: calc(100% / var(--project-density-scale));
+  min-height: calc(60vh / var(--project-density-scale));
 }
 
 .mindmap-group {
@@ -1124,6 +1132,22 @@
 .memo-link-add-btn {
   min-height: 34px;
   padding: 0.35rem 0.65rem;
+}
+
+.memo-close-btn {
+  min-height: 34px;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.memo-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
 }
 
 .memo-item-editor {

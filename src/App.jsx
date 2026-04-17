@@ -13,8 +13,11 @@ const weekOrder = [1, 2, 3, 4, 5, 6, 0];
 const AUTO_SYNC_KEY = 'to-do-list-owner-default';
 const CLOUD_POLL_INTERVAL_MS = 20000;
 const UI_SCALE_STORAGE_KEY = 'ui-scale';
+const PROJECT_DENSITY_SCALE_STORAGE_KEY = 'project-density-scale';
 const MIN_UI_SCALE = 0.6;
 const MAX_UI_SCALE = 2.2;
+const MIN_PROJECT_DENSITY_SCALE = 0.65;
+const MAX_PROJECT_DENSITY_SCALE = 1.45;
 const PINCH_SENSITIVITY = 0.75;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -46,6 +49,8 @@ function App() {
   const pinchStartScaleRef = useRef(1);
   const [uiScale, setUiScale] = useLocalStorage(UI_SCALE_STORAGE_KEY, 1);
   const uiScaleRef = useRef(1);
+  const [projectDensityScale, setProjectDensityScale] = useLocalStorage(PROJECT_DENSITY_SCALE_STORAGE_KEY, 1);
+  const projectDensityScaleRef = useRef(1);
   const projectPinchZoneRef = useRef(null);
   const visionPinchZoneRef = useRef(null);
   const workflowNodeId = new URLSearchParams(window.location.search).get('workflowNode');
@@ -89,6 +94,22 @@ function App() {
     uiScaleRef.current = uiScale;
   }, [uiScale]);
 
+  useEffect(() => {
+    if (!Number.isFinite(projectDensityScale)) {
+      setProjectDensityScale(1);
+      return;
+    }
+
+    const boundedScale = clamp(projectDensityScale, MIN_PROJECT_DENSITY_SCALE, MAX_PROJECT_DENSITY_SCALE);
+    if (boundedScale !== projectDensityScale) {
+      setProjectDensityScale(boundedScale);
+    }
+  }, [projectDensityScale, setProjectDensityScale]);
+
+  useEffect(() => {
+    projectDensityScaleRef.current = projectDensityScale;
+  }, [projectDensityScale]);
+
   const isTouchInsideElement = useCallback((touch, element) => {
     if (!touch || !element) return false;
     const rect = element.getBoundingClientRect();
@@ -117,7 +138,7 @@ function App() {
       }
 
       pinchStartDistanceRef.current = getTouchDistance(event.touches);
-      pinchStartScaleRef.current = uiScaleRef.current;
+      pinchStartScaleRef.current = currentView === 'main' ? projectDensityScaleRef.current : uiScaleRef.current;
     };
 
     const handleTouchMove = (event) => {
@@ -132,6 +153,16 @@ function App() {
       const currentDistance = getTouchDistance(event.touches);
       const scaleFactor = currentDistance / pinchStartDistanceRef.current;
       const adjustedScaleFactor = scaleFactor ** PINCH_SENSITIVITY;
+      if (currentView === 'main') {
+        const nextScale = clamp(
+          pinchStartScaleRef.current * adjustedScaleFactor,
+          MIN_PROJECT_DENSITY_SCALE,
+          MAX_PROJECT_DENSITY_SCALE,
+        );
+        setProjectDensityScale(nextScale);
+        return;
+      }
+
       const nextScale = clamp(pinchStartScaleRef.current * adjustedScaleFactor, MIN_UI_SCALE, MAX_UI_SCALE);
       setUiScale(nextScale);
     };
@@ -159,7 +190,7 @@ function App() {
       document.removeEventListener('gesturestart', preventNativeGestureZoom);
       document.removeEventListener('gesturechange', preventNativeGestureZoom);
     };
-  }, [isPinchTargetTouch, setUiScale]);
+  }, [currentView, isPinchTargetTouch, setProjectDensityScale, setUiScale]);
 
   useEffect(() => {
     const trimmedKey = AUTO_SYNC_KEY;
@@ -549,7 +580,6 @@ function App() {
           <div
             ref={projectPinchZoneRef}
             className="pinch-zoom-scope"
-            style={{ transform: `scale(${uiScale})` }}
           >
             <ProjectDashboard
               treeNodes={treeNodes}
@@ -559,6 +589,7 @@ function App() {
               updateNodeFields={updateNodeFields}
               toggleDayAssignment={toggleDayAssignment}
               moveNode={moveNode}
+              densityScale={projectDensityScale}
             />
           </div>
 

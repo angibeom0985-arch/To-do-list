@@ -30,7 +30,16 @@ const calculateProgress = (node) => {
   return Math.round((completed / tasks) * 100);
 };
 
-export default function ProjectDashboard({ treeNodes, addRootProject, addChildNode, deleteNode, updateNodeFields, toggleDayAssignment, moveNode }) {
+export default function ProjectDashboard({
+  treeNodes,
+  addRootProject,
+  addChildNode,
+  deleteNode,
+  updateNodeFields,
+  toggleDayAssignment,
+  moveNode,
+  densityScale = 1,
+}) {
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [draggedNodeId, setDraggedNodeId] = useState(null);
   const [dragOverNodeId, setDragOverNodeId] = useState(null);
@@ -80,7 +89,7 @@ export default function ProjectDashboard({ treeNodes, addRootProject, addChildNo
   };
 
   return (
-    <div className="project-dashboard glass-panel" style={{ overflow: 'hidden' }}>
+    <div className="project-dashboard glass-panel" style={{ overflow: 'hidden', '--project-density-scale': densityScale }}>
       <div className="dashboard-header" style={{ marginBottom: '0' }}>
         <h2>📁 프로젝트</h2>
         <form onSubmit={handleAddRoot} className="project-add-form">
@@ -188,8 +197,8 @@ function TreeItem({
     if (hOutRef.current) {
       const s = hOutRef.current.style;
       s.top = `${parentCenterY - 1}px`;
-      s.left = `${-(Math.abs(hOutRight) + paddingLeft)}px`;
-      s.width = `${Math.abs(hOutRight) + paddingLeft}px`;
+      s.left = `${-Math.abs(hOutRight)}px`;
+      s.width = `${Math.abs(hOutRight)}px`;
       s.height = '2px';
       s.display = '';
     }
@@ -200,16 +209,17 @@ function TreeItem({
       return r.top + r.height / 2 - colRect.top;
     });
 
-    const minY = Math.min(...childCenters);
-    const maxY = Math.max(...childCenters);
+    const spineStart = Math.min(parentCenterY, ...childCenters);
+    const spineEnd = Math.max(parentCenterY, ...childCenters);
 
     // Vertical spine
     if (vSpineRef.current) {
-      if (childCenters.length > 1) {
+      const spineHeight = spineEnd - spineStart;
+      if (spineHeight > 0.5) {
         const s = vSpineRef.current.style;
-        s.top = `${minY}px`;
+        s.top = `${spineStart}px`;
         s.left = '0px';
-        s.height = `${maxY - minY}px`;
+        s.height = `${spineHeight}px`;
         s.width = '2px';
         s.display = '';
       } else {
@@ -548,6 +558,13 @@ function TreeItem({
                   onClick={addMemoItem}
                 >
                   메모 추가
+                </button>
+                <button
+                  type="button"
+                  className="memo-close-btn"
+                  onClick={() => setShowMemo(false)}
+                >
+                  메모 닫기
                 </button>
               </div>
             </div>
