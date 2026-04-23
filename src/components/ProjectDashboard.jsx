@@ -290,11 +290,25 @@ function TreeItem({
     ro.observe(parentCard);
     childCardsFromNode(node.children, childCardRefs.current).forEach((cardEl) => ro.observe(cardEl));
 
+    const mo = new MutationObserver(() => {
+      requestAnimationFrame(updateConnectors);
+    });
+    mo.observe(childrenCol, { childList: true, subtree: true });
+
     return () => {
       cancelAnimationFrame(rafId);
+      mo.disconnect();
       ro.disconnect();
     };
   }, [updateConnectors, node.children, node.isExpanded, isAdding, draggedNodeId]);
+
+  React.useLayoutEffect(() => {
+    if (!showChildrenCol) {
+      hideConnectors();
+      return;
+    }
+    updateConnectors();
+  });
 
   React.useEffect(() => {
     const rafId = requestAnimationFrame(() => {
